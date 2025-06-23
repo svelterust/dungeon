@@ -20,4 +20,4 @@ FROM debian:bookworm-slim AS runtime
 
 WORKDIR /app
 COPY --from=builder /app/target/release/server /usr/local/bin
-ENTRYPOINT ["/usr/local/bin/server"]
+ENTRYPOINT ["/usr/local/bin/server", "-p", "9000"]
