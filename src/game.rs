@@ -503,7 +503,7 @@ impl GameState {
         let total_players = 1 + self.remote_players.len();
 
         // Draw player count in top left corner
-        let player_text = format!("Players Connected: {}", total_players);
+        let player_text = format!("Players Connected: {total_players}");
         draw_text(&player_text, 10.0, 30.0, 20.0, BLACK);
 
         // Draw boss
@@ -524,7 +524,7 @@ impl GameState {
             // Draw respawn timer
             let respawn_time_left = 5.0 - self.boss.respawn_timer;
             if respawn_time_left > 0.0 {
-                let respawn_text = format!("Boss respawning in: {:.1}s", respawn_time_left);
+                let respawn_text = format!("Boss respawning in: {respawn_time_left:.1}s");
                 let text_width = measure_text(&respawn_text, None, 24, 1.0).width;
                 draw_text(
                     &respawn_text,
@@ -638,7 +638,7 @@ impl GameState {
         draw_rectangle_lines(x, y, width, height, 1.0, WHITE);
 
         // Health text
-        let health_text = format!("{}/{}", current_health, max_health);
+        let health_text = format!("{current_health}/{max_health}");
         let text_size = 12.0;
         let text_width = measure_text(&health_text, None, text_size as u16, 1.0).width;
         draw_text(
