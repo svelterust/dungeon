@@ -203,6 +203,14 @@ impl Server {
                 // Broadcast player respawn to all clients
                 Self::broadcast_to_all(clients, message);
             }
+            Payload::PlayerDirection(_, _, _) => {
+                // Broadcast player direction to other clients
+                Self::broadcast_to_others(clients, sender_id, message);
+            }
+            Payload::PlayerKill(_, _) => {
+                // Broadcast player kill to all clients
+                Self::broadcast_to_all(clients, message);
+            }
         }
     }
 

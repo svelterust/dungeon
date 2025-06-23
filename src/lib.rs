@@ -16,4 +16,6 @@ pub enum Payload {
     BossAreaAttack(f32, f32),                  // center_x, center_y
     BossShield(bool),                          // shield_active
     PlayerRespawn(u32, f32, f32),              // player_id, x, y
+    PlayerDirection(u32, f32, f32),            // player_id, direction_x, direction_y
+    PlayerKill(u32, u32),                      // killer_id, victim_id
 }

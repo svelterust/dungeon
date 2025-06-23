@@ -14,6 +14,7 @@ pub struct Player {
     pub max_health: u32,
     pub respawn_timer: f32,
     pub is_alive: bool,
+    pub kills: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -261,6 +262,16 @@ pub struct AreaAttack {
     pub max_time: f32,
 }
 
+#[derive(Debug, Clone)]
+pub struct DamageIndicator {
+    pub x: f32,
+    pub y: f32,
+    pub damage: u32,
+    pub timer: f32,
+    pub max_time: f32,
+    pub from_player: bool,
+}
+
 impl AreaAttack {
     pub fn new(x: f32, y: f32) -> Self {
         Self {
@@ -277,6 +288,25 @@ impl AreaAttack {
     }
 }
 
+impl DamageIndicator {
+    pub fn new(x: f32, y: f32, damage: u32, from_player: bool) -> Self {
+        Self {
+            x,
+            y,
+            damage,
+            timer: 0.0,
+            max_time: 1.5,
+            from_player,
+        }
+    }
+
+    pub fn update(&mut self, dt: f32) -> bool {
+        self.timer += dt;
+        self.y -= 30.0 * dt; // Float upward
+        self.timer >= self.max_time
+    }
+}
+
 #[allow(dead_code)]
 pub struct GameState {
     pub local_player: Player,
@@ -284,6 +314,7 @@ pub struct GameState {
     pub bullets: Vec<Bullet>,
     pub boss: Boss,
     pub area_attacks: Vec<AreaAttack>,
+    pub damage_indicators: Vec<DamageIndicator>,
     pub network_sender: Option<Sender<Payload>>,
 }
 
@@ -299,6 +330,7 @@ impl GameState {
             max_health: 100,
             respawn_timer: 0.0,
             is_alive: true,
+            kills: 0,
         };
 
         GameState {
@@ -307,6 +339,7 @@ impl GameState {
             bullets: Vec::new(),
             boss: Boss::new(),
             area_attacks: Vec::new(),
+            damage_indicators: Vec::new(),
             network_sender: None,
         }
     }
@@ -325,12 +358,11 @@ impl GameState {
             if self.local_player.respawn_timer >= 5.0 {
                 // Respawn player directly without borrowing issues
                 self.local_player.x = macroquad::rand::gen_range(50.0, screen_width() - 50.0);
-                self.local_player.y =
-                    macroquad::rand::gen_range(screen_height() / 2.0, screen_height() - 50.0);
+                self.local_player.y = macroquad::rand::gen_range(screen_height() / 2.0, screen_height() - 50.0);
                 self.local_player.health = self.local_player.max_health;
                 self.local_player.is_alive = true;
                 self.local_player.respawn_timer = 0.0;
-
+                
                 if let Some(sender) = &self.network_sender {
                     let _ = sender.send(Payload::PlayerRespawn(
                         self.local_player.id,
@@ -350,6 +382,7 @@ impl GameState {
         let speed = 200.0 * get_frame_time();
         let mut new_direction_x = self.local_player.direction_x;
         let mut new_direction_y = self.local_player.direction_y;
+        let mut direction_changed = false;
 
         if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
             self.local_player.x -= speed;
@@ -376,10 +409,22 @@ impl GameState {
             moved = true;
         }
 
-        // Update direction if moved
-        if moved {
+        // Check if direction changed
+        if new_direction_x != self.local_player.direction_x || new_direction_y != self.local_player.direction_y {
+            direction_changed = true;
             self.local_player.direction_x = new_direction_x;
             self.local_player.direction_y = new_direction_y;
+        }
+
+        // Send direction update to network if direction changed
+        if direction_changed {
+            if let Some(sender) = &self.network_sender {
+                let _ = sender.send(Payload::PlayerDirection(
+                    self.local_player.id,
+                    self.local_player.direction_x,
+                    self.local_player.direction_y,
+                ));
+            }
         }
 
         // Clamp to screen bounds
@@ -423,6 +468,9 @@ impl GameState {
         // Update area attacks
         self.area_attacks.retain_mut(|attack| !attack.update(dt));
 
+        // Update damage indicators
+        self.damage_indicators.retain_mut(|indicator| !indicator.update(dt));
+
         // Update remote player respawn timers
         for player in &mut self.remote_players {
             if !player.is_alive {
@@ -460,6 +508,14 @@ impl GameState {
                             self.local_player.respawn_timer = 0.0;
                         }
 
+                        // Add damage indicator
+                        self.damage_indicators.push(DamageIndicator::new(
+                            self.local_player.x,
+                            self.local_player.y,
+                            10,
+                            false,
+                        ));
+
                         // Send health update to network
                         if let Some(sender) = &self.network_sender {
                             let _ = sender.send(Payload::PlayerHit(
@@ -472,6 +528,41 @@ impl GameState {
 
                 // Check remote players (they handle their own collisions)
             } else {
+                // Check local player bullets hitting remote players (PvP)
+                if bullet.owner_id == self.local_player.id {
+                    for remote_player in &self.remote_players {
+                        if remote_player.is_alive {
+                            let dx = bullet.x - remote_player.x;
+                            let dy = bullet.y - remote_player.y;
+                            let distance = (dx * dx + dy * dy).sqrt();
+
+                            if distance <= 18.0 {
+                                // Player radius (15) + bullet radius (3)
+                                bullets_to_remove.push(i);
+                                
+                                // Send damage to remote player
+                                if let Some(sender) = &self.network_sender {
+                                    let new_health = remote_player.health.saturating_sub(15);
+                                    let _ = sender.send(Payload::PlayerHit(
+                                        remote_player.id,
+                                        new_health,
+                                    ));
+                                    
+                                    // If this would kill the player, send kill notification
+                                    if new_health == 0 {
+                                        self.local_player.kills += 1;
+                                        let _ = sender.send(Payload::PlayerKill(
+                                            self.local_player.id,
+                                            remote_player.id,
+                                        ));
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 // Check player bullets hitting boss
                 if self.boss.alive {
                     let dx = bullet.x - self.boss.x;
@@ -490,6 +581,49 @@ impl GameState {
                             } else {
                                 let _ = sender.send(Payload::BossHit(self.boss.health));
                             }
+                        }
+                    }
+                }
+
+                // Check player bullets hitting other players (PvP)
+                // Only check if bullet is not from local player hitting local player
+                if bullet.owner_id != self.local_player.id && self.local_player.is_alive {
+                    let dx = bullet.x - self.local_player.x;
+                    let dy = bullet.y - self.local_player.y;
+                    let distance = (dx * dx + dy * dy).sqrt();
+
+                    if distance <= 18.0 {
+                        // Player radius (15) + bullet radius (3)
+                        let was_alive = self.local_player.is_alive;
+                        self.local_player.health = self.local_player.health.saturating_sub(15);
+                        bullets_to_remove.push(i);
+
+                        if self.local_player.health == 0 {
+                            self.local_player.is_alive = false;
+                            self.local_player.respawn_timer = 0.0;
+                            
+                            // Award kill to shooter if player was alive
+                            if was_alive {
+                                if let Some(shooter) = self.remote_players.iter_mut().find(|p| p.id == bullet.owner_id) {
+                                    shooter.kills += 1;
+                                }
+                            }
+                        }
+
+                        // Add PvP damage indicator
+                        self.damage_indicators.push(DamageIndicator::new(
+                            self.local_player.x,
+                            self.local_player.y,
+                            15,
+                            true,
+                        ));
+
+                        // Send health update to network
+                        if let Some(sender) = &self.network_sender {
+                            let _ = sender.send(Payload::PlayerHit(
+                                self.local_player.id,
+                                self.local_player.health,
+                            ));
                         }
                     }
                 }
@@ -694,6 +828,7 @@ impl GameState {
                         max_health: 100,
                         respawn_timer: 0.0,
                         is_alive: true,
+                        kills: 0,
                     });
                 }
             }
@@ -710,6 +845,7 @@ impl GameState {
                         max_health: 100,
                         respawn_timer: 0.0,
                         is_alive: true,
+                        kills: 0,
                     });
                     println!(
                         "Player {} joined (total remote players: {})",
@@ -799,6 +935,14 @@ impl GameState {
                             self.local_player.is_alive = false;
                             self.local_player.respawn_timer = 0.0;
                         }
+
+                        // Add area damage indicator
+                        self.damage_indicators.push(DamageIndicator::new(
+                            self.local_player.x,
+                            self.local_player.y,
+                            20,
+                            false,
+                        ));
                     }
                 }
             }
@@ -823,6 +967,29 @@ impl GameState {
                     player.respawn_timer = 0.0;
                 }
             }
+            Payload::PlayerDirection(player_id, direction_x, direction_y) => {
+                if let Some(player) = self.remote_players.iter_mut().find(|p| p.id == *player_id) {
+                    player.direction_x = *direction_x;
+                    player.direction_y = *direction_y;
+                }
+            }
+            Payload::PlayerKill(killer_id, victim_id) => {
+                // Update kill count for killer
+                if *killer_id == self.local_player.id {
+                    // Local player got a kill (already handled locally)
+                } else if let Some(killer) = self.remote_players.iter_mut().find(|p| p.id == *killer_id) {
+                    killer.kills += 1;
+                }
+                
+                // Handle victim death
+                if *victim_id == self.local_player.id {
+                    // Local player was killed (already handled via PlayerHit)
+                } else if let Some(victim) = self.remote_players.iter_mut().find(|p| p.id == *victim_id) {
+                    victim.is_alive = false;
+                    victim.respawn_timer = 0.0;
+                    victim.health = 0;
+                }
+            }
         }
     }
 
@@ -830,9 +997,32 @@ impl GameState {
         // Calculate total players (local + remote)
         let total_players = 1 + self.remote_players.len();
 
-        // Draw player count in top left corner
+        // Draw player count and kill count in top left corner
         let player_text = format!("Players Connected: {total_players}");
         draw_text(&player_text, 10.0, 30.0, 20.0, BLACK);
+        
+        let kills_text = format!("Your Kills: {}", self.local_player.kills);
+        draw_text(&kills_text, 10.0, 50.0, 18.0, DARKBLUE);
+        
+        // Draw leaderboard
+        draw_text("LEADERBOARD", 10.0, 90.0, 16.0, DARKGRAY);
+        
+        // Collect all players with their kills
+        let mut players_with_kills = vec![(self.local_player.id, self.local_player.kills, "You".to_string())];
+        for player in &self.remote_players {
+            players_with_kills.push((player.id, player.kills, format!("Player {}", player.id)));
+        }
+        
+        // Sort by kills (descending)
+        players_with_kills.sort_by(|a, b| b.1.cmp(&a.1));
+        
+        // Draw top 5 players
+        for (i, (_, kills, name)) in players_with_kills.iter().take(5).enumerate() {
+            let y_pos = 110.0 + (i as f32 * 16.0);
+            let rank_text = format!("{}. {} - {} kills", i + 1, name, kills);
+            let color = if name == "You" { DARKBLUE } else { DARKGRAY };
+            draw_text(&rank_text, 10.0, y_pos, 14.0, color);
+        }
 
         // Draw boss
         if self.boss.alive {
@@ -970,7 +1160,20 @@ impl GameState {
         for player in &self.remote_players {
             if player.is_alive {
                 draw_circle(player.x, player.y, 15.0, RED);
-
+                
+                // Draw direction arrow for remote players
+                let arrow_length = 25.0;
+                let arrow_end_x = player.x + player.direction_x * arrow_length;
+                let arrow_end_y = player.y + player.direction_y * arrow_length;
+                draw_line(
+                    player.x,
+                    player.y,
+                    arrow_end_x,
+                    arrow_end_y,
+                    2.0,
+                    MAROON,
+                );
+                
                 // Draw remote player health bar
                 self.draw_health_bar(
                     player.x - 20.0,
@@ -980,6 +1183,17 @@ impl GameState {
                     player.health,
                     player.max_health,
                     RED,
+                );
+                
+                // Draw kill count above health bar
+                let kill_text = format!("K:{}", player.kills);
+                let text_width = measure_text(&kill_text, None, 12, 1.0).width;
+                draw_text(
+                    &kill_text,
+                    player.x - text_width / 2.0,
+                    player.y - 35.0,
+                    12.0,
+                    WHITE,
                 );
             } else {
                 // Draw ghost remote player
@@ -1045,6 +1259,28 @@ impl GameState {
             }
         }
 
+        // Draw damage indicators
+        for indicator in &self.damage_indicators {
+            let progress = indicator.timer / indicator.max_time;
+            let alpha = 1.0 - progress;
+            
+            let color = if indicator.from_player {
+                Color::new(1.0, 0.4, 0.0, alpha) // Orange for PvP damage
+            } else {
+                Color::new(1.0, 0.0, 0.0, alpha) // Red for boss damage
+            };
+            
+            let damage_text = format!("-{}", indicator.damage);
+            let text_width = measure_text(&damage_text, None, 18, 1.0).width;
+            draw_text(
+                &damage_text,
+                indicator.x - text_width / 2.0,
+                indicator.y,
+                18.0,
+                color,
+            );
+        }
+
         // Draw controls info in bottom left
         draw_text(
             "WASD/Arrow Keys: Move",
@@ -1055,6 +1291,8 @@ impl GameState {
         );
         draw_text("Space: Shoot", 10.0, screen_height() - 20.0, 16.0, DARKGRAY);
         draw_text("ESC: Quit", 10.0, screen_height() - 60.0, 16.0, DARKGRAY);
+        draw_text("PvP: Players can shoot each other!", 10.0, screen_height() - 80.0, 14.0, ORANGE);
+        draw_text("Kill other players to climb the leaderboard!", 10.0, screen_height() - 100.0, 14.0, GOLD);
     }
 
     fn draw_health_bar(
