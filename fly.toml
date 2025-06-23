@@ -11,14 +11,6 @@ auto_stop_machines = "suspend"
 auto_start_machines = true
 min_machines_running = 0
 
-[[services.ports]]
-port = 80
-handlers = ["tcp"]
-
-[[services.ports]]
-port = 443
-handlers = ["tcp", "tls"]
-
 [[vm]]
 cpus = 1
 memory = "512mb"
