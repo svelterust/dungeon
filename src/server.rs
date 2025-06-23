@@ -16,7 +16,7 @@ struct PlayerState {
 #[derive(FromArgs)]
 /// Dungeon multiplayer server
 struct Args {
-    #[argh(option, short = 'p', default = "8080")]
+    #[argh(option, short = 'p', default = "9000")]
     /// port to listen on
     port: u16,
 }
@@ -162,6 +162,26 @@ impl Server {
             Payload::Shoot(_, _, _, _, _) => {
                 // Broadcast bullet to all other clients
                 Self::broadcast_to_others(clients, sender_id, message);
+            }
+            Payload::BossShoot(_, _, _, _) => {
+                // Broadcast boss bullet to all clients
+                Self::broadcast_to_all(clients, message);
+            }
+            Payload::PlayerHit(_, _) => {
+                // Broadcast player hit to all clients
+                Self::broadcast_to_all(clients, message);
+            }
+            Payload::BossHit(_) => {
+                // Broadcast boss hit to all clients
+                Self::broadcast_to_all(clients, message);
+            }
+            Payload::BossSpawn(_, _) => {
+                // Broadcast boss spawn to all clients
+                Self::broadcast_to_all(clients, message);
+            }
+            Payload::BossDead => {
+                // Broadcast boss death to all clients
+                Self::broadcast_to_all(clients, message);
             }
         }
     }

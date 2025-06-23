@@ -15,7 +15,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 #[derive(FromArgs)]
 /// Dungeon multiplayer client
 struct Args {
-    #[argh(option, short = 'a', default = "\"0.0.0.0:8080\".to_string()")]
+    #[argh(
+        option,
+        short = 'a',
+        default = "if cfg!(debug_assertions) { \"0.0.0.0:9000\" } else { \"dungeon.svelterust.com:9000\" }.to_string()"
+    )]
     /// server address to connect to
     address: String,
 }
