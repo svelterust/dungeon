@@ -159,6 +159,10 @@ impl Server {
                 }
                 Self::broadcast_to_others(clients, sender_id, message);
             }
+            Payload::Shoot(_, _, _, _, _) => {
+                // Broadcast bullet to all other clients
+                Self::broadcast_to_others(clients, sender_id, message);
+            }
         }
     }
 

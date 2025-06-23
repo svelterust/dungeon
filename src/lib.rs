@@ -5,4 +5,5 @@ pub enum Payload {
     Move(u32, f32, f32), // player_id, x, y
     Join(u32),
     Leave(u32),
+    Shoot(u32, f32, f32, f32, f32), // player_id, x, y, direction_x, direction_y
 }
