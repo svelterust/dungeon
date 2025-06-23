@@ -42,8 +42,8 @@ impl NetworkSystem {
             Payload::BossShoot(x, y, direction_x, direction_y) => {
                 Self::handle_boss_shoot(*x, *y, *direction_x, *direction_y, bullets);
             }
-            Payload::PlayerHit(player_id, new_health) => {
-                Self::handle_player_hit(*player_id, *new_health, local_player, remote_players);
+            Payload::PlayerHit(player_id, new_health, damage) => {
+                Self::handle_player_hit(*player_id, *new_health, *damage, local_player, remote_players, damage_indicators);
             }
             Payload::BossHit(new_health) => {
                 Self::handle_boss_hit(*new_health, boss);
@@ -176,8 +176,10 @@ impl NetworkSystem {
     fn handle_player_hit(
         player_id: u32,
         new_health: u32,
+        damage: u32,
         local_player: &mut Player,
         remote_players: &mut [Player],
+        damage_indicators: &mut Vec<DamageIndicator>,
     ) {
         if player_id == local_player.id {
             local_player.health = new_health;
@@ -191,6 +193,14 @@ impl NetworkSystem {
                 player.is_alive = false;
                 player.respawn_timer = 0.0;
             }
+            
+            // Add damage indicator for remote player
+            damage_indicators.push(DamageIndicator::new(
+                player.x,
+                player.y,
+                damage,
+                false,
+            ));
         }
     }
 

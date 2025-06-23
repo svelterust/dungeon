@@ -14,27 +14,27 @@ pub mod player {
 
 /// Boss configuration
 pub mod boss {
-    pub const RADIUS: f32 = 50.0;
-    pub const INNER_RADIUS: f32 = 45.0;
+    pub const RADIUS: f32 = 60.0;
+    pub const INNER_RADIUS: f32 = 50.0;
     pub const SHIELD_RADIUS: f32 = 60.0;
-    pub const DASH_EFFECT_RADIUS: f32 = 55.0;
-    pub const MAX_HEALTH: u32 = 100;
-    pub const SPEED: f32 = 50.0;
-    pub const DASH_SPEED: f32 = 400.0;
-    pub const SHOOT_INTERVAL: f32 = 1.5;
-    pub const MOVE_INTERVAL: f32 = 2.0;
-    pub const POWER_INTERVAL: f32 = 8.0;
-    pub const DASH_INTERVAL: f32 = 12.0;
-    pub const SHIELD_DURATION: f32 = 3.0;
+    pub const DASH_EFFECT_RADIUS: f32 = 75.0;
+    pub const MAX_HEALTH: u32 = 1000;
+    pub const SPEED: f32 = 70.0;
+    pub const DASH_SPEED: f32 = 650.0;
+    pub const SHOOT_INTERVAL: f32 = 0.9;
+    pub const MOVE_INTERVAL: f32 = 1.5;
+    pub const POWER_INTERVAL: f32 = 4.0;
+    pub const DASH_INTERVAL: f32 = 6.0;
+    pub const SHIELD_DURATION: f32 = 7.0;
     pub const RESPAWN_TIME: f32 = 5.0;
     pub const SPAWN_Y: f32 = 100.0;
-    pub const MOVEMENT_VARIANCE: f32 = 100.0;
+    pub const MOVEMENT_VARIANCE: f32 = 250.0;
     pub const MIN_DISTANCE_FROM_EDGE: f32 = 50.0;
-    pub const COLLISION_RADIUS: f32 = 53.0; // Boss radius + bullet radius
+    pub const COLLISION_RADIUS: f32 = 63.0; // Boss radius + bullet radius
     pub const DASH_STOP_DISTANCE: f32 = 10.0;
-    pub const HEALTH_BAR_WIDTH: f32 = 100.0;
-    pub const HEALTH_BAR_HEIGHT: f32 = 8.0;
-    pub const HEALTH_BAR_OFFSET_Y: f32 = 70.0;
+    pub const HEALTH_BAR_WIDTH: f32 = 150.0;
+    pub const HEALTH_BAR_HEIGHT: f32 = 13.0;
+    pub const HEALTH_BAR_OFFSET_Y: f32 = 80.0;
 }
 
 /// Bullet configuration
@@ -82,14 +82,14 @@ pub mod ui {
     pub const TEXT_SIZE_TINY: f32 = 16.0;
     pub const TEXT_SIZE_MICRO: f32 = 14.0;
     pub const TEXT_SIZE_NANO: f32 = 12.0;
-    
+
     pub const MARGIN: f32 = 10.0;
     pub const LINE_HEIGHT: f32 = 20.0;
     pub const SMALL_LINE_HEIGHT: f32 = 16.0;
-    
+
     pub const LEADERBOARD_MAX_ENTRIES: usize = 5;
     pub const WARNING_DISPLAY_TIME: f32 = 2.0;
-    
+
     pub const HEALTH_TEXT_SIZE: f32 = 12.0;
     pub const HEALTH_TEXT_OFFSET_Y: f32 = 12.0;
 }

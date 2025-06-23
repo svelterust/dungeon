@@ -188,6 +188,7 @@ impl GameState {
                     let _ = sender.send(Payload::PlayerHit(
                         self.local_player.id,
                         self.local_player.health,
+                        damage,
                     ));
                 }
             }

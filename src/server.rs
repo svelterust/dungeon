@@ -167,7 +167,7 @@ impl Server {
 
             // Messages that broadcast to all clients
             Payload::BossShoot(_, _, _, _)
-            | Payload::PlayerHit(_, _)
+            | Payload::PlayerHit(_, _, _)
             | Payload::BossHit(_)
             | Payload::BossSpawn(_, _)
             | Payload::BossDead

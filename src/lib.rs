@@ -25,7 +25,7 @@ pub enum Payload {
     Leave(u32),
     Shoot(u32, f32, f32, f32, f32), // player_id, x, y, direction_x, direction_y
     BossShoot(f32, f32, f32, f32),  // x, y, direction_x, direction_y
-    PlayerHit(u32, u32),            // player_id, new_health
+    PlayerHit(u32, u32, u32),       // player_id, new_health, damage_amount
     BossHit(u32),                   // new_boss_health
     BossSpawn(f32, f32),            // x, y
     BossDead,

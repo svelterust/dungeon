@@ -70,22 +70,6 @@ impl RenderSystem {
         for (text, y_pos) in controls {
             draw_text(text, ui::MARGIN, y_pos, ui::TEXT_SIZE_TINY, DARKGRAY);
         }
-
-        // PvP info
-        draw_text(
-            "PvP: Players can shoot each other!",
-            ui::MARGIN,
-            screen_height() - 80.0,
-            ui::TEXT_SIZE_MICRO,
-            ORANGE,
-        );
-        draw_text(
-            "Kill other players to climb the leaderboard!",
-            ui::MARGIN,
-            screen_height() - 100.0,
-            ui::TEXT_SIZE_MICRO,
-            GOLD,
-        );
     }
 
     /// Draw all game entities

@@ -89,8 +89,11 @@ impl CollisionSystem {
         if local_player.is_alive
             && bullet.collides_with(local_player.x, local_player.y, player::RADIUS)
         {
-            // Add damage indicator
+            // Apply damage to local player
             let damage = bullet.damage();
+            local_player.take_damage(damage);
+
+            // Add damage indicator
             damage_indicators.push(DamageIndicator::new(
                 local_player.x,
                 local_player.y,
@@ -98,9 +101,9 @@ impl CollisionSystem {
                 false,
             ));
 
-            // Send health update to network
+            // Send health update to network with new health after damage
             if let Some(sender) = network_sender {
-                let _ = sender.send(Payload::PlayerHit(local_player.id, local_player.health));
+                let _ = sender.send(Payload::PlayerHit(local_player.id, local_player.health, damage));
             }
             return true;
         }
@@ -126,8 +129,9 @@ impl CollisionSystem {
         {
             // Send damage to remote player
             if let Some(sender) = network_sender {
-                let new_health = hit_player.health.saturating_sub(bullet.damage());
-                let _ = sender.send(Payload::PlayerHit(hit_player.id, new_health));
+                let damage = bullet.damage();
+                let new_health = hit_player.health.saturating_sub(damage);
+                let _ = sender.send(Payload::PlayerHit(hit_player.id, new_health, damage));
 
                 // If this would kill the player, send kill notification
                 if new_health == 0 {
@@ -165,7 +169,7 @@ impl CollisionSystem {
 
             // Send health update to network
             if let Some(sender) = network_sender {
-                let _ = sender.send(Payload::PlayerHit(local_player.id, local_player.health));
+                let _ = sender.send(Payload::PlayerHit(local_player.id, local_player.health, damage));
             }
 
             return true; // Remove bullet
@@ -216,7 +220,7 @@ impl CollisionSystem {
 
                 // Send health update to network
                 if let Some(sender) = network_sender {
-                    let _ = sender.send(Payload::PlayerHit(local_player.id, local_player.health));
+                    let _ = sender.send(Payload::PlayerHit(local_player.id, local_player.health, damage));
                 }
             }
         }
