@@ -2,10 +2,9 @@
 mod game;
 
 // Imports
-use anyhow::Result;
 use argh::FromArgs;
+use bincode;
 use game::Payload;
-use serde_json;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -84,9 +83,16 @@ impl Server {
                     break;
                 }
                 Ok(n) => {
-                    let data = String::from_utf8_lossy(&buffer[..n]);
-                    if let Ok(_payload) = serde_json::from_str::<Payload>(&data) {
-                        Self::broadcast_to_others(&clients, &client_id, &data);
+                    if n >= 4 {
+                        let len = u32::from_le_bytes([buffer[0], buffer[1], buffer[2], buffer[3]])
+                            as usize;
+                        if n >= 4 + len {
+                            if let Ok(_payload) =
+                                bincode::deserialize::<Payload>(&buffer[4..4 + len])
+                            {
+                                Self::broadcast_to_others(&clients, &client_id, &buffer[..4 + len]);
+                            }
+                        }
                     }
                 }
                 Err(_) => {
@@ -101,14 +107,14 @@ impl Server {
     fn broadcast_to_others(
         clients: &Arc<Mutex<HashMap<String, TcpStream>>>,
         sender_id: &str,
-        message: &str,
+        message: &[u8],
     ) {
         let mut clients = clients.lock().unwrap();
         let mut disconnected_clients = Vec::new();
 
         for (client_id, stream) in clients.iter_mut() {
             if client_id != sender_id {
-                if stream.write_all(message.as_bytes()).is_err() {
+                if stream.write_all(message).is_err() {
                     disconnected_clients.push(client_id.clone());
                 }
             }

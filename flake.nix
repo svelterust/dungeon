@@ -25,12 +25,12 @@
       let
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
-        rust = pkgs.rust-bin.nightly.latest.default.override {
-          extensions = [ "rust-src" ];
-          targets = [ "wasm32-unknown-unknown" ];
-        };
+        # rust = pkgs.rust-bin.nightly.latest.default.override {
+        #   extensions = [ "rust-src" ];
+        #   targets = [ "wasm32-unknown-unknown" ];
+        # };
         appInputs = with pkgs; [
-          rust
+          # rust
           pkg-config
           libGL
           xorg.libXi

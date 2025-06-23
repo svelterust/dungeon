@@ -4,11 +4,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::mpsc::{Receiver, Sender};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "lowercase")]
 pub enum Payload {
-    Move { x: f32, y: f32 },
-    Join { name: String },
-    Leave { name: String },
+    Move(f32, f32),
+    Join(String),
+    Leave(String),
 }
 
 #[derive(Debug, Clone)]
@@ -74,7 +73,7 @@ impl GameState {
     pub fn should_send_position(&self) -> bool {
         let dx = self.local_player.x - self.last_sent_x;
         let dy = self.local_player.y - self.last_sent_y;
-        dx.abs() > 5.0 || dy.abs() > 5.0
+        dx.abs() > 0.5 || dy.abs() > 0.5
     }
 
     pub fn mark_position_sent(&mut self) {
@@ -84,7 +83,7 @@ impl GameState {
 
     pub fn handle_network_message(&mut self, payload: &Payload) {
         match payload {
-            Payload::Move { x, y } => {
+            Payload::Move(x, y) => {
                 // Simple approach: one remote player
                 if let Some(player) = self.remote_players.first_mut() {
                     player.x = *x;
@@ -98,10 +97,10 @@ impl GameState {
                     });
                 }
             }
-            Payload::Join { name } => {
+            Payload::Join(name) => {
                 println!("Player joined: {}", name);
             }
-            Payload::Leave { name } => {
+            Payload::Leave(name) => {
                 println!("Player left: {}", name);
             }
         }
@@ -121,27 +120,17 @@ impl GameState {
 pub async fn run_client_game(
     network_sender: Sender<Payload>,
     network_receiver: Receiver<Payload>,
-    server_address: &str,
 ) -> Result<()> {
-    let mut game_state = GameState::new("Player");
-
     // Send join message
-    let _ = network_sender.send(Payload::Join {
-        name: game_state.local_player.name.clone(),
-    });
+    let mut game_state = GameState::new("Player");
+    let _ = network_sender.send(Payload::Join(game_state.local_player.name.clone()));
 
     loop {
-        clear_background(WHITE);
-
         // Handle input and movement
+        clear_background(WHITE);
         let moved = game_state.update_input();
-
-        // Send position if moved significantly
         if moved && game_state.should_send_position() {
-            let move_payload = Payload::Move {
-                x: game_state.local_player.x,
-                y: game_state.local_player.y,
-            };
+            let move_payload = Payload::Move(game_state.local_player.x, game_state.local_player.y);
 
             if network_sender.send(move_payload).is_ok() {
                 game_state.mark_position_sent();
@@ -153,25 +142,12 @@ pub async fn run_client_game(
             game_state.handle_network_message(&payload);
         }
 
-        // Draw UI
-        draw_text("CLIENT MODE", 20.0, 30.0, 25.0, BLACK);
-        draw_text(
-            &format!("Connected to: {}", server_address),
-            20.0,
-            60.0,
-            20.0,
-            GRAY,
-        );
-        draw_text("Use WASD or arrows to move", 20.0, 90.0, 18.0, GRAY);
-        draw_text("Press ESC to quit", 20.0, 110.0, 18.0, GRAY);
-
         // Draw game objects
         game_state.draw();
 
+        // Quit to leave game
         if is_key_pressed(KeyCode::Escape) {
-            let _ = network_sender.send(Payload::Leave {
-                name: game_state.local_player.name.clone(),
-            });
+            let _ = network_sender.send(Payload::Leave(game_state.local_player.name.clone()));
             break;
         }
         next_frame().await;

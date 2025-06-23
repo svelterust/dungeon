@@ -46,10 +46,18 @@ impl NetworkClient {
                             break;
                         }
                         Ok(n) => {
-                            let data = String::from_utf8_lossy(&buffer[..n]);
-                            if let Ok(payload) = serde_json::from_str::<Payload>(&data) {
-                                if incoming.send(payload).is_err() {
-                                    break;
+                            if n >= 4 {
+                                let len = u32::from_le_bytes([
+                                    buffer[0], buffer[1], buffer[2], buffer[3],
+                                ]) as usize;
+                                if n >= 4 + len {
+                                    if let Ok(payload) =
+                                        bincode::deserialize::<Payload>(&buffer[4..4 + len])
+                                    {
+                                        if incoming.send(payload).is_err() {
+                                            break;
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -64,8 +72,9 @@ impl NetworkClient {
             thread::spawn(move || {
                 let mut stream = write_stream;
                 while let Ok(payload) = outgoing.recv() {
-                    if let Ok(json) = serde_json::to_string(&payload) {
-                        if stream.write_all(json.as_bytes()).is_err() {
+                    if let Ok(data) = bincode::serialize(&payload) {
+                        let len = (data.len() as u32).to_le_bytes();
+                        if stream.write_all(&len).is_err() || stream.write_all(&data).is_err() {
                             break;
                         }
                     }
@@ -91,5 +100,5 @@ async fn main() -> Result<()> {
     let Args { address } = argh::from_env::<Args>();
     println!("Connecting to server at {address}...");
     NetworkClient::connect(&address, game_to_net_rx, net_to_game_tx)?;
-    run_client_game(game_to_net_tx, net_to_game_rx, &address).await
+    run_client_game(game_to_net_tx, net_to_game_rx).await
 }
