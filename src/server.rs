@@ -8,6 +8,12 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+#[derive(Debug, Clone)]
+struct PlayerState {
+    x: f32,
+    y: f32,
+}
+
 #[derive(FromArgs)]
 /// Dungeon multiplayer server
 struct Args {
@@ -19,6 +25,7 @@ struct Args {
 struct Server {
     clients: Arc<Mutex<HashMap<u32, TcpStream>>>,
     client_counter: Arc<Mutex<u32>>,
+    player_positions: Arc<Mutex<HashMap<u32, PlayerState>>>,
 }
 
 impl Server {
@@ -26,6 +33,7 @@ impl Server {
         Server {
             clients: Arc::new(Mutex::new(HashMap::new())),
             client_counter: Arc::new(Mutex::new(0)),
+            player_positions: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -39,8 +47,9 @@ impl Server {
                 Ok(stream) => {
                     let clients = Arc::clone(&self.clients);
                     let counter = Arc::clone(&self.client_counter);
+                    let positions = Arc::clone(&self.player_positions);
                     thread::spawn(move || {
-                        Self::handle_client(stream, clients, counter);
+                        Self::handle_client(stream, clients, counter, positions);
                     });
                 }
                 Err(e) => {
@@ -55,6 +64,7 @@ impl Server {
         mut stream: TcpStream,
         clients: Arc<Mutex<HashMap<u32, TcpStream>>>,
         counter: Arc<Mutex<u32>>,
+        positions: Arc<Mutex<HashMap<u32, PlayerState>>>,
     ) {
         let client_id = {
             let mut counter = counter.lock().unwrap();
@@ -78,8 +88,7 @@ impl Server {
             match stream.read(&mut buffer) {
                 Ok(0) => {
                     println!("Client {client_id} disconnected");
-                    let mut clients = clients.lock().unwrap();
-                    clients.remove(&client_id);
+                    Self::handle_disconnect(&clients, &positions, client_id);
                     break;
                 }
                 Ok(n) => {
@@ -95,12 +104,14 @@ impl Server {
                         ]) as usize;
 
                         if message_buffer.len() >= 4 + len {
-                            if let Ok(_payload) =
+                            if let Ok(payload) =
                                 bincode::deserialize::<Payload>(&message_buffer[4..4 + len])
                             {
-                                Self::broadcast_to_others(
+                                Self::handle_payload(
                                     &clients,
+                                    &positions,
                                     client_id,
+                                    payload,
                                     &message_buffer[..4 + len],
                                 );
                             }
@@ -111,11 +122,101 @@ impl Server {
                     }
                 }
                 Err(_) => {
-                    let mut clients = clients.lock().unwrap();
-                    clients.remove(&client_id);
+                    Self::handle_disconnect(&clients, &positions, client_id);
                     break;
                 }
             }
+        }
+    }
+
+    fn handle_payload(
+        clients: &Arc<Mutex<HashMap<u32, TcpStream>>>,
+        positions: &Arc<Mutex<HashMap<u32, PlayerState>>>,
+        sender_id: u32,
+        payload: Payload,
+        message: &[u8],
+    ) {
+        match payload {
+            Payload::Move(player_id, x, y) => {
+                // Update player position
+                {
+                    let mut positions = positions.lock().unwrap();
+                    positions.insert(player_id, PlayerState { x, y });
+                }
+                // Broadcast move to others
+                Self::broadcast_to_others(clients, sender_id, message);
+            }
+            Payload::Join(_) => {
+                // Send current state to new player
+                Self::send_current_state(clients, positions, sender_id);
+                // Broadcast join to others
+                Self::broadcast_to_others(clients, sender_id, message);
+            }
+            Payload::Leave(_) => {
+                // Remove from positions and broadcast
+                {
+                    let mut positions = positions.lock().unwrap();
+                    positions.remove(&sender_id);
+                }
+                Self::broadcast_to_others(clients, sender_id, message);
+            }
+        }
+    }
+
+    fn send_current_state(
+        clients: &Arc<Mutex<HashMap<u32, TcpStream>>>,
+        positions: &Arc<Mutex<HashMap<u32, PlayerState>>>,
+        new_player_id: u32,
+    ) {
+        let positions = positions.lock().unwrap();
+        let mut clients = clients.lock().unwrap();
+
+        if let Some(stream) = clients.get_mut(&new_player_id) {
+            for (&player_id, state) in positions.iter() {
+                if player_id != new_player_id {
+                    // Send Join message for existing player
+                    if let Ok(join_data) = bincode::serialize(&Payload::Join(player_id)) {
+                        let len = (join_data.len() as u32).to_le_bytes();
+                        let _ = stream.write_all(&len);
+                        let _ = stream.write_all(&join_data);
+                    }
+
+                    // Send Move message for existing player's position
+                    if let Ok(move_data) =
+                        bincode::serialize(&Payload::Move(player_id, state.x, state.y))
+                    {
+                        let len = (move_data.len() as u32).to_le_bytes();
+                        let _ = stream.write_all(&len);
+                        let _ = stream.write_all(&move_data);
+                    }
+                }
+            }
+            let _ = stream.flush();
+        }
+    }
+
+    fn handle_disconnect(
+        clients: &Arc<Mutex<HashMap<u32, TcpStream>>>,
+        positions: &Arc<Mutex<HashMap<u32, PlayerState>>>,
+        client_id: u32,
+    ) {
+        // Remove from clients and positions
+        {
+            let mut clients = clients.lock().unwrap();
+            clients.remove(&client_id);
+        }
+        {
+            let mut positions = positions.lock().unwrap();
+            positions.remove(&client_id);
+        }
+
+        // Broadcast leave message to remaining clients
+        if let Ok(leave_data) = bincode::serialize(&Payload::Leave(client_id)) {
+            let len = (leave_data.len() as u32).to_le_bytes();
+            let mut message = Vec::new();
+            message.extend_from_slice(&len);
+            message.extend_from_slice(&leave_data);
+            Self::broadcast_to_all(clients, &message);
         }
     }
 
@@ -139,11 +240,25 @@ impl Server {
             clients.remove(&client_id);
         }
     }
+
+    fn broadcast_to_all(clients: &Arc<Mutex<HashMap<u32, TcpStream>>>, message: &[u8]) {
+        let mut clients = clients.lock().unwrap();
+        let mut disconnected_clients = Vec::new();
+
+        for (&client_id, stream) in clients.iter_mut() {
+            if stream.write_all(message).is_err() || stream.flush().is_err() {
+                disconnected_clients.push(client_id);
+            }
+        }
+
+        for client_id in disconnected_clients {
+            clients.remove(&client_id);
+        }
+    }
 }
 
 fn main() -> std::io::Result<()> {
     // Start the server
     let Args { port } = argh::from_env::<Args>();
-    let server = Server::new();
-    server.start(&format!("0.0.0.0:{port}"))
+    Server::new().start(&format!("0.0.0.0:{port}"))
 }

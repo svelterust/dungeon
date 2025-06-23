@@ -60,14 +60,16 @@ impl GameState {
 
     pub fn handle_network_message(&mut self, payload: &Payload) {
         match payload {
-            Payload::Move(x, y) => {
-                // Simple approach: one remote player
-                if let Some(player) = self.remote_players.first_mut() {
+            Payload::Move(player_id, x, y) => {
+                // Update position of the specific player
+                if let Some(player) = self.remote_players.iter_mut().find(|p| p.id == *player_id) {
                     player.x = *x;
                     player.y = *y;
                 } else {
+                    // Player not found, add them (this can happen if we missed their Join message)
+                    println!("Adding player {} from move message (missed join?)", player_id);
                     self.remote_players.push(Player {
-                        id: 999, // Remote player ID
+                        id: *player_id,
                         x: *x,
                         y: *y,
                     });
@@ -81,12 +83,22 @@ impl GameState {
                         x: screen_width() / 2.0,
                         y: screen_height() / 2.0,
                     });
-                    println!("Player {} joined", id);
+                    println!("Player {} joined (total remote players: {})", id, self.remote_players.len());
+                } else if *id == self.local_player.id {
+                    println!("Ignoring join message for local player {}", id);
+                } else {
+                    println!("Player {} already exists, ignoring duplicate join", id);
                 }
             }
             Payload::Leave(id) => {
+                let initial_count = self.remote_players.len();
                 self.remote_players.retain(|p| p.id != *id);
-                println!("Player {} left", id);
+                let final_count = self.remote_players.len();
+                if initial_count != final_count {
+                    println!("Player {} left (remaining remote players: {})", id, final_count);
+                } else {
+                    println!("Received leave message for unknown player {}", id);
+                }
             }
         }
     }
@@ -115,7 +127,7 @@ pub async fn run_client_game(
         clear_background(WHITE);
         let moved = game_state.update_input();
         if moved {
-            let move_payload = Payload::Move(game_state.local_player.x, game_state.local_player.y);
+            let move_payload = Payload::Move(game_state.local_player.id, game_state.local_player.x, game_state.local_player.y);
             let _ = network_sender.send(move_payload);
         }
 

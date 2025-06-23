@@ -21,7 +21,7 @@ struct Args {
 }
 
 struct NetworkClient {
-    handle: thread::JoinHandle<()>,
+    _handle: thread::JoinHandle<()>,
 }
 
 impl NetworkClient {
@@ -103,7 +103,7 @@ impl NetworkClient {
             let _ = incoming_handle.join();
             let _ = outgoing_handle.join();
         });
-        Ok(NetworkClient { handle: handle })
+        Ok(NetworkClient { _handle: handle })
     }
 }
 
