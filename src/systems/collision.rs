@@ -3,6 +3,7 @@
 use crate::Payload;
 use crate::constants::{boss, player};
 use crate::entities::{AreaAttack, Boss, Bullet, DamageIndicator, Player};
+use crate::systems::AudioSystem;
 use std::sync::mpsc::Sender;
 
 /// Handles all collision detection in the game
@@ -26,6 +27,7 @@ impl CollisionSystem {
         boss: &mut Boss,
         damage_indicators: &mut Vec<DamageIndicator>,
         network_sender: &Option<Sender<Payload>>,
+        audio_system: &Option<AudioSystem>,
     ) {
         self.bullets_to_remove.clear();
 
@@ -37,6 +39,7 @@ impl CollisionSystem {
                 boss,
                 damage_indicators,
                 network_sender,
+                audio_system,
             ) {
                 self.bullets_to_remove.push(i);
             }
@@ -57,6 +60,7 @@ impl CollisionSystem {
         boss: &mut Boss,
         damage_indicators: &mut Vec<DamageIndicator>,
         network_sender: &Option<Sender<Payload>>,
+        audio_system: &Option<AudioSystem>,
     ) -> bool {
         if bullet.is_boss_bullet {
             self.handle_boss_bullet_collision(
@@ -64,6 +68,7 @@ impl CollisionSystem {
                 local_player,
                 damage_indicators,
                 network_sender,
+                audio_system,
             )
         } else {
             self.handle_player_bullet_collision(
@@ -73,6 +78,7 @@ impl CollisionSystem {
                 boss,
                 damage_indicators,
                 network_sender,
+                audio_system,
             )
         }
     }
@@ -84,6 +90,7 @@ impl CollisionSystem {
         local_player: &mut Player,
         damage_indicators: &mut Vec<DamageIndicator>,
         network_sender: &Option<Sender<Payload>>,
+        audio_system: &Option<AudioSystem>,
     ) -> bool {
         // Check collision with local player
         if local_player.is_alive
@@ -91,7 +98,16 @@ impl CollisionSystem {
         {
             // Apply damage to local player
             let damage = bullet.damage();
-            local_player.take_damage(damage);
+            let died = local_player.take_damage(damage);
+
+            // Play appropriate sound
+            if let Some(audio) = audio_system {
+                if died {
+                    audio.play_explosion();
+                } else {
+                    audio.play_hit();
+                }
+            }
 
             // Add damage indicator
             damage_indicators.push(DamageIndicator::new(
@@ -120,6 +136,7 @@ impl CollisionSystem {
         boss: &mut Boss,
         damage_indicators: &mut Vec<DamageIndicator>,
         network_sender: &Option<Sender<Payload>>,
+        audio_system: &Option<AudioSystem>,
     ) -> bool {
         // Check local player bullet hitting remote players (PvP)
         if bullet.owner_id == local_player.id
@@ -132,6 +149,15 @@ impl CollisionSystem {
                 let damage = bullet.damage();
                 let new_health = hit_player.health.saturating_sub(damage);
                 let _ = sender.send(Payload::PlayerHit(hit_player.id, new_health, damage));
+
+                // Play appropriate sound
+                if let Some(audio) = audio_system {
+                    if new_health == 0 {
+                        audio.play_explosion();
+                    } else {
+                        audio.play_hit();
+                    }
+                }
 
                 // If this would kill the player, send kill notification
                 if new_health == 0 {
@@ -150,6 +176,15 @@ impl CollisionSystem {
             let was_alive = local_player.is_alive;
             let damage = bullet.damage();
             let died = local_player.take_damage(damage);
+
+            // Play appropriate sound
+            if let Some(audio) = audio_system {
+                if died {
+                    audio.play_explosion();
+                } else {
+                    audio.play_hit();
+                }
+            }
 
             // Award kill to shooter if player was alive
             if was_alive
@@ -179,6 +214,15 @@ impl CollisionSystem {
         if boss.alive && bullet.collides_with(boss.x, boss.y, boss::RADIUS) {
             let boss_died = boss.take_damage(bullet.damage());
 
+            // Play appropriate sound
+            if let Some(audio) = audio_system {
+                if boss_died {
+                    audio.play_explosion();
+                } else {
+                    audio.play_hit();
+                }
+            }
+
             // Add damage indicator
             damage_indicators.push(DamageIndicator::new(boss.x, boss.y, bullet.damage(), false));
 
@@ -204,11 +248,21 @@ impl CollisionSystem {
         local_player: &mut Player,
         damage_indicators: &mut Vec<DamageIndicator>,
         network_sender: &Option<Sender<Payload>>,
+        audio_system: &Option<AudioSystem>,
     ) {
         for area_attack in area_attacks {
             if local_player.is_alive && area_attack.affects_point(local_player.x, local_player.y) {
                 let damage = area_attack.damage();
-                local_player.take_damage(damage);
+                let died = local_player.take_damage(damage);
+
+                // Play appropriate sound
+                if let Some(audio) = audio_system {
+                    if died {
+                        audio.play_explosion();
+                    } else {
+                        audio.play_hit();
+                    }
+                }
 
                 // Add damage indicator
                 damage_indicators.push(DamageIndicator::new(

@@ -16,7 +16,7 @@ pub mod player {
 pub mod boss {
     pub const RADIUS: f32 = 60.0;
     pub const INNER_RADIUS: f32 = 50.0;
-    pub const SHIELD_RADIUS: f32 = 60.0;
+    pub const SHIELD_RADIUS: f32 = 70.0;
     pub const DASH_EFFECT_RADIUS: f32 = 75.0;
     pub const MAX_HEALTH: u32 = 1000;
     pub const SPEED: f32 = 70.0;

@@ -3,6 +3,7 @@
 use crate::Payload;
 use crate::constants::player;
 use crate::entities::{Bullet, Player};
+use crate::systems::AudioSystem;
 use macroquad::prelude::*;
 use std::sync::mpsc::Sender;
 
@@ -15,16 +16,17 @@ impl InputSystem {
         local_player: &mut Player,
         bullets: &mut Vec<Bullet>,
         network_sender: &Option<Sender<Payload>>,
+        audio_system: &Option<AudioSystem>,
     ) -> bool {
         // Handle respawning
         if !local_player.is_alive {
-            Self::handle_respawn(local_player, network_sender);
+            Self::handle_respawn(local_player, network_sender, audio_system);
             return false;
         }
 
         // Handle shooting
         if is_key_pressed(KeyCode::Space) {
-            Self::handle_shooting(local_player, bullets, network_sender);
+            Self::handle_shooting(local_player, bullets, network_sender, audio_system);
         }
 
         // Move player and return if moved
@@ -32,12 +34,17 @@ impl InputSystem {
     }
 
     /// Handle player respawn logic
-    fn handle_respawn(local_player: &mut Player, network_sender: &Option<Sender<Payload>>) {
+    fn handle_respawn(local_player: &mut Player, network_sender: &Option<Sender<Payload>>, audio_system: &Option<AudioSystem>) {
         let dt = get_frame_time();
         local_player.update_respawn(dt);
 
         if local_player.can_respawn() {
             local_player.respawn();
+
+            // Play respawn sound
+            if let Some(audio) = audio_system {
+                audio.play_respawn();
+            }
 
             if let Some(sender) = network_sender {
                 let _ = sender.send(Payload::PlayerRespawn(
@@ -103,6 +110,7 @@ impl InputSystem {
         local_player: &Player,
         bullets: &mut Vec<Bullet>,
         network_sender: &Option<Sender<Payload>>,
+        audio_system: &Option<AudioSystem>,
     ) {
         let bullet = Bullet::new(
             local_player.x,
@@ -112,6 +120,11 @@ impl InputSystem {
             local_player.id,
         );
         bullets.push(bullet);
+
+        // Play shooting sound
+        if let Some(audio) = audio_system {
+            audio.play_player_shoot();
+        }
 
         // Send bullet to network
         if let Some(sender) = network_sender {

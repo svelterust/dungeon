@@ -3,7 +3,7 @@
 use crate::Payload;
 use crate::constants::{multi_shot, network};
 use crate::entities::{AreaAttack, Boss, Bullet, DamageIndicator, Player};
-use crate::systems::{CollisionSystem, InputSystem, NetworkSystem, RenderSystem};
+use crate::systems::{AudioSystem, CollisionSystem, InputSystem, NetworkSystem, RenderSystem};
 use anyhow::Result;
 use macroquad::prelude::*;
 use std::sync::mpsc::{Receiver, Sender};
@@ -20,6 +20,7 @@ pub struct GameState {
 
     // Systems
     collision_system: CollisionSystem,
+    audio_system: Option<AudioSystem>,
 
     // Network
     network_sender: Option<Sender<Payload>>,
@@ -38,6 +39,7 @@ impl GameState {
             area_attacks: Vec::new(),
             damage_indicators: Vec::new(),
             collision_system: CollisionSystem::new(),
+            audio_system: None,
             network_sender: None,
         }
     }
@@ -47,12 +49,18 @@ impl GameState {
         self.network_sender = Some(sender);
     }
 
+    /// Set the audio system for sound effects
+    pub fn set_audio_system(&mut self, audio_system: AudioSystem) {
+        self.audio_system = Some(audio_system);
+    }
+
     /// Update game input and return whether the player moved
     pub fn update_input(&mut self) -> bool {
         InputSystem::update_player_input(
             &mut self.local_player,
             &mut self.bullets,
             &self.network_sender,
+            &self.audio_system,
         )
     }
 
@@ -86,6 +94,7 @@ impl GameState {
             &mut self.boss,
             &mut self.damage_indicators,
             &self.network_sender,
+            &self.audio_system,
         );
     }
 
@@ -151,6 +160,11 @@ impl GameState {
                 }
             }
 
+            // Play multi-shot sound
+            if let Some(audio) = &self.audio_system {
+                audio.play_boss_multi_shot();
+            }
+
             // Send multi-shot to network
             if let Some(sender) = &self.network_sender {
                 let _ = sender.send(Payload::BossMultiShoot(
@@ -196,6 +210,11 @@ impl GameState {
             // Add visual effect
             self.area_attacks.push(area_attack);
 
+            // Play area attack sound
+            if let Some(audio) = &self.audio_system {
+                audio.play_boss_area_attack();
+            }
+
             // Send area attack to network
             if let Some(sender) = &self.network_sender {
                 let _ = sender.send(Payload::BossAreaAttack(area_center_x, area_center_y));
@@ -206,6 +225,12 @@ impl GameState {
     /// Execute boss shield ability
     fn execute_boss_shield(&mut self) {
         self.boss.activate_shield();
+        
+        // Play shield sound
+        if let Some(audio) = &self.audio_system {
+            audio.play_boss_shield();
+        }
+        
         if let Some(sender) = &self.network_sender {
             let _ = sender.send(Payload::BossShield(true));
         }
@@ -216,6 +241,12 @@ impl GameState {
         if self.boss.should_dash()
             && let Some(target_player) = self.find_nearest_player_to_boss(players) {
                 self.boss.start_dash(target_player.x, target_player.y);
+                
+                // Play dash sound
+                if let Some(audio) = &self.audio_system {
+                    audio.play_boss_dash();
+                }
+                
                 if let Some(sender) = &self.network_sender {
                     let _ = sender.send(Payload::BossDash(target_player.x, target_player.y));
                 }
@@ -238,6 +269,11 @@ impl GameState {
                         Bullet::new_boss_bullet(self.boss.x, self.boss.y, direction_x, direction_y);
                     self.bullets.push(bullet);
 
+                    // Play boss shoot sound
+                    if let Some(audio) = &self.audio_system {
+                        audio.play_boss_shoot();
+                    }
+
                     // Send boss shoot to network
                     if let Some(sender) = &self.network_sender {
                         let _ = sender.send(Payload::BossShoot(
@@ -257,6 +293,12 @@ impl GameState {
     fn handle_boss_respawn(&mut self) {
         if self.boss.should_respawn() {
             self.boss.respawn();
+            
+            // Play respawn sound
+            if let Some(audio) = &self.audio_system {
+                audio.play_respawn();
+            }
+            
             if let Some(sender) = &self.network_sender {
                 let _ = sender.send(Payload::BossSpawn(self.boss.x, self.boss.y));
             }
@@ -288,6 +330,7 @@ impl GameState {
                 &mut self.bullets,
                 &mut self.area_attacks,
                 &mut self.damage_indicators,
+                &self.audio_system,
             );
             processed += 1;
             if processed > network::MAX_MESSAGES_PER_FRAME {
@@ -331,6 +374,18 @@ pub async fn run_client_game(
 ) -> Result<()> {
     let mut game_state = GameState::new(player_id);
     game_state.set_network_sender(network_sender.clone());
+
+    // Initialize audio system
+    match AudioSystem::new().await {
+        Ok(audio_system) => {
+            game_state.set_audio_system(audio_system);
+            println!("Audio system initialized successfully");
+        }
+        Err(e) => {
+            eprintln!("Failed to initialize audio system: {}", e);
+            eprintln!("Game will continue without sound effects");
+        }
+    }
 
     // Send join message
     let _ = network_sender.send(Payload::Join(game_state.local_player.id));

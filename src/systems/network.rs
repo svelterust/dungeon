@@ -2,6 +2,7 @@
 
 use crate::Payload;
 use crate::entities::{AreaAttack, Boss, Bullet, DamageIndicator, Player};
+use crate::systems::AudioSystem;
 use macroquad::prelude::*;
 
 /// Handles processing of network messages and game state synchronization
@@ -17,13 +18,14 @@ impl NetworkSystem {
         bullets: &mut Vec<Bullet>,
         area_attacks: &mut Vec<AreaAttack>,
         damage_indicators: &mut Vec<DamageIndicator>,
+        audio_system: &Option<AudioSystem>,
     ) {
         match payload {
             Payload::Move(player_id, x, y) => {
                 Self::handle_player_move(*player_id, *x, *y, local_player, remote_players);
             }
             Payload::Join(id) => {
-                Self::handle_player_join(*id, local_player, remote_players);
+                Self::handle_player_join(*id, local_player, remote_players, audio_system);
             }
             Payload::Leave(id) => {
                 Self::handle_player_leave(*id, remote_players);
@@ -73,7 +75,7 @@ impl NetworkSystem {
                 Self::handle_boss_shield(*active, boss);
             }
             Payload::PlayerRespawn(player_id, x, y) => {
-                Self::handle_player_respawn(*player_id, *x, *y, local_player, remote_players);
+                Self::handle_player_respawn(*player_id, *x, *y, local_player, remote_players, audio_system);
             }
             Payload::PlayerDirection(player_id, direction_x, direction_y) => {
                 Self::handle_player_direction(
@@ -109,7 +111,7 @@ impl NetworkSystem {
     }
 
     /// Handle player joining the game
-    fn handle_player_join(player_id: u32, local_player: &Player, remote_players: &mut Vec<Player>) {
+    fn handle_player_join(player_id: u32, local_player: &Player, remote_players: &mut Vec<Player>, audio_system: &Option<AudioSystem>) {
         // Don't add local player or duplicates
         if player_id == local_player.id {
             println!("Ignoring join message for local player {player_id}");
@@ -123,6 +125,12 @@ impl NetworkSystem {
 
         let new_player = Player::new_at_center(player_id);
         remote_players.push(new_player);
+        
+        // Play join sound
+        if let Some(audio) = audio_system {
+            audio.play_join();
+        }
+        
         println!(
             "Player {} joined (total remote players: {})",
             player_id,
@@ -287,6 +295,7 @@ impl NetworkSystem {
         y: f32,
         local_player: &Player,
         remote_players: &mut [Player],
+        audio_system: &Option<AudioSystem>,
     ) {
         // Local player handles their own respawn
         if player_id != local_player.id
@@ -297,6 +306,11 @@ impl NetworkSystem {
             player.health = player.max_health;
             player.is_alive = true;
             player.respawn_timer = 0.0;
+            
+            // Play respawn sound for remote player
+            if let Some(audio) = audio_system {
+                audio.play_respawn();
+            }
         }
     }
 
@@ -353,12 +367,12 @@ mod tests {
         let local_player = Player::new(1, 100.0, 100.0);
         let mut remote_players = Vec::new();
 
-        NetworkSystem::handle_player_join(2, &local_player, &mut remote_players);
+        NetworkSystem::handle_player_join(2, &local_player, &mut remote_players, &None);
         assert_eq!(remote_players.len(), 1);
         assert_eq!(remote_players[0].id, 2);
 
         // Test duplicate join
-        NetworkSystem::handle_player_join(2, &local_player, &mut remote_players);
+        NetworkSystem::handle_player_join(2, &local_player, &mut remote_players, &None);
         assert_eq!(remote_players.len(), 1); // Should not add duplicate
     }
 
