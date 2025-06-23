@@ -12,5 +12,5 @@ cargo run --bin client # player 2
 ## Connect to public server
 
 ```sh
-cargo run --bin client --release -- -a dungeon-dry-tree.fly.dev:8080
+cargo run --bin client --release -- -a dungeon.svelterust.com:9000
 ```
