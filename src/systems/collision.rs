@@ -1,8 +1,8 @@
 //! Collision detection system for handling all game collisions
 
-use crate::constants::{boss, player};
-use crate::entities::{Player, Boss, Bullet, AreaAttack, DamageIndicator};
 use crate::Payload;
+use crate::constants::{boss, player};
+use crate::entities::{AreaAttack, Boss, Bullet, DamageIndicator, Player};
 use std::sync::mpsc::Sender;
 
 /// Handles all collision detection in the game
@@ -32,7 +32,6 @@ impl CollisionSystem {
         for (i, bullet) in bullets.iter().enumerate() {
             if self.handle_bullet_collision(
                 bullet,
-                i,
                 local_player,
                 remote_players,
                 boss,
@@ -53,7 +52,6 @@ impl CollisionSystem {
     fn handle_bullet_collision(
         &self,
         bullet: &Bullet,
-        bullet_index: usize,
         local_player: &mut Player,
         remote_players: &mut Vec<Player>,
         boss: &mut Boss,
@@ -61,7 +59,12 @@ impl CollisionSystem {
         network_sender: &Option<Sender<Payload>>,
     ) -> bool {
         if bullet.is_boss_bullet {
-            self.handle_boss_bullet_collision(bullet, local_player, damage_indicators, network_sender)
+            self.handle_boss_bullet_collision(
+                bullet,
+                local_player,
+                damage_indicators,
+                network_sender,
+            )
         } else {
             self.handle_player_bullet_collision(
                 bullet,
@@ -83,11 +86,11 @@ impl CollisionSystem {
         network_sender: &Option<Sender<Payload>>,
     ) -> bool {
         // Check collision with local player
-        if local_player.is_alive && bullet.collides_with(local_player.x, local_player.y, player::RADIUS) {
-            let damage = bullet.damage();
-            let died = local_player.take_damage(damage);
-
+        if local_player.is_alive
+            && bullet.collides_with(local_player.x, local_player.y, player::RADIUS)
+        {
             // Add damage indicator
+            let damage = bullet.damage();
             damage_indicators.push(DamageIndicator::new(
                 local_player.x,
                 local_player.y,
@@ -97,13 +100,9 @@ impl CollisionSystem {
 
             // Send health update to network
             if let Some(sender) = network_sender {
-                let _ = sender.send(Payload::PlayerHit(
-                    local_player.id,
-                    local_player.health,
-                ));
+                let _ = sender.send(Payload::PlayerHit(local_player.id, local_player.health));
             }
-
-            return true; // Remove bullet
+            return true;
         }
 
         false
@@ -121,21 +120,19 @@ impl CollisionSystem {
     ) -> bool {
         // Check local player bullet hitting remote players (PvP)
         if bullet.owner_id == local_player.id {
-            if let Some(hit_player) = remote_players.iter().find(|p| {
-                p.is_alive && bullet.collides_with(p.x, p.y, player::RADIUS)
-            }) {
+            if let Some(hit_player) = remote_players
+                .iter()
+                .find(|p| p.is_alive && bullet.collides_with(p.x, p.y, player::RADIUS))
+            {
                 // Send damage to remote player
                 if let Some(sender) = network_sender {
                     let new_health = hit_player.health.saturating_sub(bullet.damage());
                     let _ = sender.send(Payload::PlayerHit(hit_player.id, new_health));
-                    
+
                     // If this would kill the player, send kill notification
                     if new_health == 0 {
                         local_player.kills += 1;
-                        let _ = sender.send(Payload::PlayerKill(
-                            local_player.id,
-                            hit_player.id,
-                        ));
+                        let _ = sender.send(Payload::PlayerKill(local_player.id, hit_player.id));
                     }
                 }
                 return true; // Remove bullet
@@ -148,10 +145,12 @@ impl CollisionSystem {
                 let was_alive = local_player.is_alive;
                 let damage = bullet.damage();
                 let died = local_player.take_damage(damage);
-                
+
                 // Award kill to shooter if player was alive
                 if was_alive && died {
-                    if let Some(shooter) = remote_players.iter_mut().find(|p| p.id == bullet.owner_id) {
+                    if let Some(shooter) =
+                        remote_players.iter_mut().find(|p| p.id == bullet.owner_id)
+                    {
                         shooter.kills += 1;
                     }
                 }
@@ -166,10 +165,7 @@ impl CollisionSystem {
 
                 // Send health update to network
                 if let Some(sender) = network_sender {
-                    let _ = sender.send(Payload::PlayerHit(
-                        local_player.id,
-                        local_player.health,
-                    ));
+                    let _ = sender.send(Payload::PlayerHit(local_player.id, local_player.health));
                 }
 
                 return true; // Remove bullet
@@ -181,12 +177,7 @@ impl CollisionSystem {
             let boss_died = boss.take_damage(bullet.damage());
 
             // Add damage indicator
-            damage_indicators.push(DamageIndicator::new(
-                boss.x,
-                boss.y,
-                bullet.damage(),
-                false,
-            ));
+            damage_indicators.push(DamageIndicator::new(boss.x, boss.y, bullet.damage(), false));
 
             // Send boss hit to network
             if let Some(sender) = network_sender {
@@ -226,10 +217,7 @@ impl CollisionSystem {
 
                 // Send health update to network
                 if let Some(sender) = network_sender {
-                    let _ = sender.send(Payload::PlayerHit(
-                        local_player.id,
-                        local_player.health,
-                    ));
+                    let _ = sender.send(Payload::PlayerHit(local_player.id, local_player.health));
                 }
             }
         }
@@ -256,7 +244,7 @@ mod tests {
     fn test_bullet_player_collision() {
         let player = Player::new(1, 100.0, 100.0);
         let bullet = Bullet::new(100.0, 100.0, 1.0, 0.0, 2);
-        
+
         // Test collision detection
         assert!(bullet.collides_with(player.x, player.y, player::RADIUS));
     }

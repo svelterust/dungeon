@@ -159,56 +159,24 @@ impl Server {
                 }
                 Self::broadcast_to_others(clients, sender_id, message);
             }
-            Payload::Shoot(_, _, _, _, _) => {
-                // Broadcast bullet to all other clients
+
+            // Messages that broadcast to others only
+            Payload::Shoot(_, _, _, _, _) | Payload::PlayerDirection(_, _, _) => {
                 Self::broadcast_to_others(clients, sender_id, message);
             }
-            Payload::BossShoot(_, _, _, _) => {
-                // Broadcast boss bullet to all clients
-                Self::broadcast_to_all(clients, message);
-            }
-            Payload::PlayerHit(_, _) => {
-                // Broadcast player hit to all clients
-                Self::broadcast_to_all(clients, message);
-            }
-            Payload::BossHit(_) => {
-                // Broadcast boss hit to all clients
-                Self::broadcast_to_all(clients, message);
-            }
-            Payload::BossSpawn(_, _) => {
-                // Broadcast boss spawn to all clients
-                Self::broadcast_to_all(clients, message);
-            }
-            Payload::BossDead => {
-                // Broadcast boss death to all clients
-                Self::broadcast_to_all(clients, message);
-            }
-            Payload::BossMultiShoot(_, _, _) => {
-                // Broadcast boss multi-shot to all clients
-                Self::broadcast_to_all(clients, message);
-            }
-            Payload::BossDash(_, _) => {
-                // Broadcast boss dash to all clients
-                Self::broadcast_to_all(clients, message);
-            }
-            Payload::BossAreaAttack(_, _) => {
-                // Broadcast boss area attack to all clients
-                Self::broadcast_to_all(clients, message);
-            }
-            Payload::BossShield(_) => {
-                // Broadcast boss shield to all clients
-                Self::broadcast_to_all(clients, message);
-            }
-            Payload::PlayerRespawn(_, _, _) => {
-                // Broadcast player respawn to all clients
-                Self::broadcast_to_all(clients, message);
-            }
-            Payload::PlayerDirection(_, _, _) => {
-                // Broadcast player direction to other clients
-                Self::broadcast_to_others(clients, sender_id, message);
-            }
-            Payload::PlayerKill(_, _) => {
-                // Broadcast player kill to all clients
+
+            // Messages that broadcast to all clients
+            Payload::BossShoot(_, _, _, _)
+            | Payload::PlayerHit(_, _)
+            | Payload::BossHit(_)
+            | Payload::BossSpawn(_, _)
+            | Payload::BossDead
+            | Payload::BossMultiShoot(_, _, _)
+            | Payload::BossDash(_, _)
+            | Payload::BossAreaAttack(_, _)
+            | Payload::BossShield(_)
+            | Payload::PlayerRespawn(_, _, _)
+            | Payload::PlayerKill(_, _) => {
                 Self::broadcast_to_all(clients, message);
             }
         }

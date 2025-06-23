@@ -1,6 +1,6 @@
 //! Visual effects entities for area attacks and damage indicators
 
-use crate::constants::{area_attack, damage_indicator, ui, alpha};
+use crate::constants::{alpha, area_attack, damage_indicator};
 use macroquad::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -54,13 +54,8 @@ impl AreaAttack {
         let alpha = alpha::AREA_ATTACK * (1.0 - progress);
 
         // Draw expanding circle
-        draw_circle(
-            self.x,
-            self.y,
-            radius,
-            Color::new(1.0, 0.3, 0.0, alpha),
-        );
-        
+        draw_circle(self.x, self.y, radius, Color::new(1.0, 0.3, 0.0, alpha));
+
         draw_circle_lines(
             self.x,
             self.y,
@@ -121,16 +116,17 @@ impl DamageIndicator {
     pub fn draw(&self) {
         let progress = self.progress();
         let alpha = alpha::DAMAGE_FADE * (1.0 - progress);
-        
+
         let color = if self.from_player {
             Color::new(1.0, 0.4, 0.0, alpha) // Orange for PvP damage
         } else {
             Color::new(1.0, 0.0, 0.0, alpha) // Red for boss damage
         };
-        
+
         let damage_text = format!("-{}", self.damage);
-        let text_width = measure_text(&damage_text, None, damage_indicator::TEXT_SIZE as u16, 1.0).width;
-        
+        let text_width =
+            measure_text(&damage_text, None, damage_indicator::TEXT_SIZE as u16, 1.0).width;
+
         draw_text(
             &damage_text,
             self.x - text_width / 2.0,
@@ -165,10 +161,10 @@ mod tests {
     fn test_damage_indicator_progress() {
         let mut indicator = DamageIndicator::new(0.0, 0.0, 10, false);
         assert_eq!(indicator.progress(), 0.0);
-        
+
         indicator.timer = indicator.max_time / 2.0;
         assert_eq!(indicator.progress(), 0.5);
-        
+
         indicator.timer = indicator.max_time;
         assert_eq!(indicator.progress(), 1.0);
     }

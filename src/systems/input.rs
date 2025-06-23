@@ -1,8 +1,8 @@
 //! Input handling system for player movement and actions
 
-use crate::constants::player;
-use crate::entities::{Player, Bullet};
 use crate::Payload;
+use crate::constants::player;
+use crate::entities::{Bullet, Player};
 use macroquad::prelude::*;
 use std::sync::mpsc::Sender;
 
@@ -22,27 +22,23 @@ impl InputSystem {
             return false;
         }
 
-        let mut moved = Self::handle_movement(local_player, network_sender);
-        
         // Handle shooting
         if is_key_pressed(KeyCode::Space) {
             Self::handle_shooting(local_player, bullets, network_sender);
         }
 
-        moved
+        // Move player and return if moved
+        Self::handle_movement(local_player, network_sender)
     }
 
     /// Handle player respawn logic
-    fn handle_respawn(
-        local_player: &mut Player,
-        network_sender: &Option<Sender<Payload>>,
-    ) {
+    fn handle_respawn(local_player: &mut Player, network_sender: &Option<Sender<Payload>>) {
         let dt = get_frame_time();
         local_player.update_respawn(dt);
-        
+
         if local_player.can_respawn() {
             local_player.respawn();
-            
+
             if let Some(sender) = network_sender {
                 let _ = sender.send(Payload::PlayerRespawn(
                     local_player.id,

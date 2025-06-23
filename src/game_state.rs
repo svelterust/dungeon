@@ -1,10 +1,10 @@
 //! Main game state manager that coordinates all systems and entities
 
+use crate::Payload;
 use crate::constants::{multi_shot, network};
-use crate::entities::{Player, Boss, Bullet, AreaAttack, DamageIndicator};
+use crate::entities::{AreaAttack, Boss, Bullet, DamageIndicator, Player};
 use crate::systems::{CollisionSystem, InputSystem, NetworkSystem, RenderSystem};
 use anyhow::Result;
-use crate::Payload;
 use macroquad::prelude::*;
 use std::sync::mpsc::{Receiver, Sender};
 
@@ -17,10 +17,10 @@ pub struct GameState {
     pub boss: Boss,
     pub area_attacks: Vec<AreaAttack>,
     pub damage_indicators: Vec<DamageIndicator>,
-    
+
     // Systems
     collision_system: CollisionSystem,
-    
+
     // Network
     network_sender: Option<Sender<Payload>>,
 }
@@ -29,7 +29,7 @@ impl GameState {
     /// Create a new game state with the given player ID
     pub fn new(player_id: u32) -> Self {
         let local_player = Player::new_at_center(player_id);
-        
+
         Self {
             local_player,
             remote_players: Vec::new(),
@@ -59,24 +59,25 @@ impl GameState {
     /// Update all game entities
     pub fn update_entities(&mut self) {
         let dt = get_frame_time();
-        
+
         // Update bullets
         self.bullets.retain_mut(|bullet| !bullet.update(dt));
-        
+
         // Update area attacks
         self.area_attacks.retain_mut(|attack| !attack.update(dt));
-        
+
         // Update damage indicators
-        self.damage_indicators.retain_mut(|indicator| !indicator.update(dt));
-        
+        self.damage_indicators
+            .retain_mut(|indicator| !indicator.update(dt));
+
         // Update remote player respawn timers
         for player in &mut self.remote_players {
             player.update_respawn(dt);
         }
-        
+
         // Update boss
         self.update_boss();
-        
+
         // Check collisions
         self.collision_system.check_bullet_collisions(
             &mut self.bullets,
@@ -144,12 +145,8 @@ impl GameState {
 
                     directions.push((direction_x, direction_y));
 
-                    let bullet = Bullet::new_boss_bullet(
-                        self.boss.x,
-                        self.boss.y,
-                        direction_x,
-                        direction_y,
-                    );
+                    let bullet =
+                        Bullet::new_boss_bullet(self.boss.x, self.boss.y, direction_x, direction_y);
                     self.bullets.push(bullet);
                 }
             }
@@ -173,7 +170,9 @@ impl GameState {
 
             // Check if local player is affected
             let area_attack = AreaAttack::new(area_center_x, area_center_y);
-            if self.local_player.is_alive && area_attack.affects_point(self.local_player.x, self.local_player.y) {
+            if self.local_player.is_alive
+                && area_attack.affects_point(self.local_player.x, self.local_player.y)
+            {
                 let damage = area_attack.damage();
                 self.local_player.take_damage(damage);
 
@@ -235,12 +234,8 @@ impl GameState {
                     let direction_x = dx / distance;
                     let direction_y = dy / distance;
 
-                    let bullet = Bullet::new_boss_bullet(
-                        self.boss.x,
-                        self.boss.y,
-                        direction_x,
-                        direction_y,
-                    );
+                    let bullet =
+                        Bullet::new_boss_bullet(self.boss.x, self.boss.y, direction_x, direction_y);
                     self.bullets.push(bullet);
 
                     // Send boss shoot to network
@@ -270,11 +265,15 @@ impl GameState {
 
     /// Find the nearest player to the boss
     fn find_nearest_player_to_boss(&self, players: &[Player]) -> Option<Player> {
-        players.iter().filter(|p| p.is_alive).min_by_key(|p| {
-            let dx = p.x - self.boss.x;
-            let dy = p.y - self.boss.y;
-            (dx * dx + dy * dy) as i32
-        }).cloned()
+        players
+            .iter()
+            .filter(|p| p.is_alive)
+            .min_by_key(|p| {
+                let dx = p.x - self.boss.x;
+                let dy = p.y - self.boss.y;
+                (dx * dx + dy * dy) as i32
+            })
+            .cloned()
     }
 
     /// Process network messages
@@ -300,13 +299,7 @@ impl GameState {
     /// Draw all game elements
     pub fn draw(&self) {
         RenderSystem::clear_screen();
-        
-        RenderSystem::draw_ui(
-            &self.local_player,
-            &self.remote_players,
-            &self.boss,
-        );
-        
+        RenderSystem::draw_ui(&self.local_player, &self.remote_players);
         RenderSystem::draw_entities(
             &self.local_player,
             &self.remote_players,
@@ -338,7 +331,7 @@ pub async fn run_client_game(
 ) -> Result<()> {
     let mut game_state = GameState::new(player_id);
     game_state.set_network_sender(network_sender.clone());
-    
+
     // Send join message
     let _ = network_sender.send(Payload::Join(game_state.local_player.id));
 
@@ -371,7 +364,7 @@ pub async fn run_client_game(
 
         next_frame().await;
     }
-    
+
     Ok(())
 }
 
@@ -391,11 +384,8 @@ mod tests {
     #[test]
     fn test_find_nearest_player_to_boss() {
         let game_state = GameState::new(1);
-        let players = vec![
-            Player::new(2, 100.0, 100.0),
-            Player::new(3, 200.0, 200.0),
-        ];
-        
+        let players = vec![Player::new(2, 100.0, 100.0), Player::new(3, 200.0, 200.0)];
+
         let nearest = game_state.find_nearest_player_to_boss(&players);
         assert!(nearest.is_some());
         // Boss starts at center, so player at 100,100 should be closer than 200,200

@@ -1,7 +1,5 @@
-//! Rendering system for UI and game elements
-
-use crate::constants::{ui, network};
-use crate::entities::{Player, Boss, Bullet, AreaAttack, DamageIndicator};
+use crate::constants::ui;
+use crate::entities::{AreaAttack, Boss, Bullet, DamageIndicator, Player};
 use macroquad::prelude::*;
 
 /// Handles all rendering operations for the game
@@ -9,19 +7,15 @@ pub struct RenderSystem;
 
 impl RenderSystem {
     /// Draw the complete game UI
-    pub fn draw_ui(
-        local_player: &Player,
-        remote_players: &[Player],
-        boss: &Boss,
-    ) {
-        Self::draw_player_count(local_player, remote_players);
+    pub fn draw_ui(local_player: &Player, remote_players: &[Player]) {
+        Self::draw_player_count(remote_players);
         Self::draw_kill_count(local_player);
         Self::draw_leaderboard(local_player, remote_players);
         Self::draw_controls();
     }
 
     /// Draw player count in top left
-    fn draw_player_count(local_player: &Player, remote_players: &[Player]) {
+    fn draw_player_count(remote_players: &[Player]) {
         let total_players = 1 + remote_players.len();
         let player_text = format!("Players Connected: {}", total_players);
         draw_text(&player_text, ui::MARGIN, 30.0, ui::LINE_HEIGHT, BLACK);
@@ -35,19 +29,29 @@ impl RenderSystem {
 
     /// Draw leaderboard
     fn draw_leaderboard(local_player: &Player, remote_players: &[Player]) {
-        draw_text("LEADERBOARD", ui::MARGIN, 90.0, ui::TEXT_SIZE_TINY, DARKGRAY);
-        
+        draw_text(
+            "LEADERBOARD",
+            ui::MARGIN,
+            90.0,
+            ui::TEXT_SIZE_TINY,
+            DARKGRAY,
+        );
+
         // Collect all players with their kills
         let mut players_with_kills = vec![(local_player.id, local_player.kills, "You".to_string())];
         for player in remote_players {
             players_with_kills.push((player.id, player.kills, format!("Player {}", player.id)));
         }
-        
+
         // Sort by kills (descending)
         players_with_kills.sort_by(|a, b| b.1.cmp(&a.1));
-        
+
         // Draw top entries
-        for (i, (_, kills, name)) in players_with_kills.iter().take(ui::LEADERBOARD_MAX_ENTRIES).enumerate() {
+        for (i, (_, kills, name)) in players_with_kills
+            .iter()
+            .take(ui::LEADERBOARD_MAX_ENTRIES)
+            .enumerate()
+        {
             let y_pos = 110.0 + (i as f32 * ui::SMALL_LINE_HEIGHT);
             let rank_text = format!("{}. {} - {} kills", i + 1, name, kills);
             let color = if name == "You" { DARKBLUE } else { DARKGRAY };

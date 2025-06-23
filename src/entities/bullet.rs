@@ -1,6 +1,6 @@
 //! Bullet entity for projectiles
 
-use crate::constants::{bullet, ui};
+use crate::constants::bullet;
 use macroquad::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -90,9 +90,9 @@ impl Bullet {
             draw_circle(self.x, self.y, bullet::BOSS_INNER_RADIUS, ORANGE);
         } else {
             let color = match self.owner_id {
-                0 => DARKPURPLE, // Should not happen, but fallback
+                0 => DARKPURPLE,                       // Should not happen, but fallback
                 id if id == self.owner_id => DARKBLUE, // This logic needs fixing in context
-                _ => DARKPURPLE, // Other players
+                _ => DARKPURPLE,                       // Other players
             };
             draw_circle(self.x, self.y, bullet::RADIUS, color);
         }

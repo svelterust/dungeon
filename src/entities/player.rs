@@ -55,10 +55,7 @@ impl Player {
     /// Respawn the player at a random safe location
     pub fn respawn(&mut self) {
         self.x = rand::gen_range(player::RADIUS, screen_width() - player::RADIUS);
-        self.y = rand::gen_range(
-            screen_height() / 2.0,
-            screen_height() - player::RADIUS,
-        );
+        self.y = rand::gen_range(screen_height() / 2.0, screen_height() - player::RADIUS);
         self.health = self.max_health;
         self.is_alive = true;
         self.respawn_timer = 0.0;
@@ -93,7 +90,7 @@ impl Player {
         }
 
         self.health = self.health.saturating_sub(damage);
-        
+
         if self.health == 0 {
             self.is_alive = false;
             self.respawn_timer = 0.0;
@@ -139,7 +136,7 @@ impl Player {
             draw_line(self.x, self.y, arrow_end_x, arrow_end_y, 2.0, arrow_color);
 
             // Draw health bar
-            self.draw_health_bar(color);
+            self.draw_health_bar();
 
             // Draw kill count for remote players
             if !is_local {
@@ -152,34 +149,53 @@ impl Player {
             } else {
                 Color::new(0.8, 0.2, 0.2, 0.5)
             };
-            
+
             draw_circle(self.x, self.y, player::RADIUS, ghost_color);
             self.draw_respawn_timer();
         }
     }
 
     /// Draw player health bar
-    fn draw_health_bar(&self, player_color: Color) {
+    fn draw_health_bar(&self) {
         let bar_x = self.x - player::HEALTH_BAR_WIDTH / 2.0;
         let bar_y = self.y - 25.0;
 
         // Background
-        draw_rectangle(bar_x, bar_y, player::HEALTH_BAR_WIDTH, player::HEALTH_BAR_HEIGHT, BLACK);
+        draw_rectangle(
+            bar_x,
+            bar_y,
+            player::HEALTH_BAR_WIDTH,
+            player::HEALTH_BAR_HEIGHT,
+            BLACK,
+        );
 
         // Health fill
         let health_percentage = self.health as f32 / self.max_health as f32;
         let health_width = player::HEALTH_BAR_WIDTH * health_percentage;
-        
+
         let health_color = match health_percentage {
             p if p > 0.6 => GREEN,
             p if p > 0.3 => YELLOW,
             _ => RED,
         };
 
-        draw_rectangle(bar_x, bar_y, health_width, player::HEALTH_BAR_HEIGHT, health_color);
+        draw_rectangle(
+            bar_x,
+            bar_y,
+            health_width,
+            player::HEALTH_BAR_HEIGHT,
+            health_color,
+        );
 
         // Border
-        draw_rectangle_lines(bar_x, bar_y, player::HEALTH_BAR_WIDTH, player::HEALTH_BAR_HEIGHT, 1.0, WHITE);
+        draw_rectangle_lines(
+            bar_x,
+            bar_y,
+            player::HEALTH_BAR_WIDTH,
+            player::HEALTH_BAR_HEIGHT,
+            1.0,
+            WHITE,
+        );
 
         // Health text
         let health_text = format!("{}/{}", self.health, self.max_health);
@@ -211,7 +227,8 @@ impl Player {
         let respawn_time_left = self.respawn_time_remaining();
         if respawn_time_left > 0.0 {
             let respawn_text = format!("Respawning: {:.1}s", respawn_time_left);
-            let text_width = measure_text(&respawn_text, None, ui::TEXT_SIZE_TINY as u16, 1.0).width;
+            let text_width =
+                measure_text(&respawn_text, None, ui::TEXT_SIZE_TINY as u16, 1.0).width;
             draw_text(
                 &respawn_text,
                 self.x - text_width / 2.0,
