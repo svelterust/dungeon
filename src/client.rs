@@ -2,7 +2,7 @@
 mod game;
 
 // Miports
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use argh::FromArgs;
 use game::{Payload, run_client_game};
 use std::io::{Read, Write};
