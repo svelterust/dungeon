@@ -9,6 +9,7 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(FromArgs)]
 /// Dungeon multiplayer client
@@ -38,7 +39,7 @@ impl NetworkClient {
         let incoming_handle = {
             let incoming = incoming.clone();
             thread::spawn(move || {
-                let mut buffer = [0; 1024];
+                let mut buffer = [0; 256];
                 loop {
                     match read_stream.read(&mut buffer) {
                         Ok(0) => {
@@ -99,6 +100,13 @@ async fn main() -> Result<()> {
     // Start network client and run game loop
     let Args { address } = argh::from_env::<Args>();
     println!("Connecting to server at {address}...");
+    
+    // Generate unique client ID from timestamp
+    let player_id = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as u32;
+    
     NetworkClient::connect(&address, game_to_net_rx, net_to_game_tx)?;
-    run_client_game(game_to_net_tx, net_to_game_rx).await
+    run_client_game(game_to_net_tx, net_to_game_rx, player_id).await
 }

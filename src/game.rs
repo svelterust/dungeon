@@ -6,16 +6,15 @@ use std::sync::mpsc::{Receiver, Sender};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Payload {
     Move(f32, f32),
-    Join(String),
-    Leave(String),
+    Join(u32),
+    Leave(u32),
 }
 
 #[derive(Debug, Clone)]
 pub struct Player {
-    pub id: String,
+    pub id: u32,
     pub x: f32,
     pub y: f32,
-    pub name: String,
 }
 
 pub struct GameState {
@@ -26,12 +25,11 @@ pub struct GameState {
 }
 
 impl GameState {
-    pub fn new(player_name: &str) -> Self {
+    pub fn new(player_id: u32) -> Self {
         let local_player = Player {
-            id: "local".to_string(),
+            id: player_id,
             x: screen_width() / 2.0,
             y: screen_height() / 2.0,
-            name: player_name.to_string(),
         };
 
         GameState {
@@ -90,18 +88,17 @@ impl GameState {
                     player.y = *y;
                 } else {
                     self.remote_players.push(Player {
-                        id: "remote_1".to_string(),
+                        id: 1,
                         x: *x,
                         y: *y,
-                        name: "Remote Player".to_string(),
                     });
                 }
             }
-            Payload::Join(name) => {
-                println!("Player joined: {}", name);
+            Payload::Join(id) => {
+                println!("Player joined: {}", id);
             }
-            Payload::Leave(name) => {
-                println!("Player left: {}", name);
+            Payload::Leave(id) => {
+                println!("Player left: {}", id);
             }
         }
     }
@@ -120,10 +117,10 @@ impl GameState {
 pub async fn run_client_game(
     network_sender: Sender<Payload>,
     network_receiver: Receiver<Payload>,
+    player_id: u32,
 ) -> Result<()> {
-    // Send join message
-    let mut game_state = GameState::new("Player");
-    let _ = network_sender.send(Payload::Join(game_state.local_player.name.clone()));
+    let mut game_state = GameState::new(player_id);
+    let _ = network_sender.send(Payload::Join(game_state.local_player.id));
 
     loop {
         // Handle input and movement
@@ -147,7 +144,7 @@ pub async fn run_client_game(
 
         // Quit to leave game
         if is_key_pressed(KeyCode::Escape) {
-            let _ = network_sender.send(Payload::Leave(game_state.local_player.name.clone()));
+            let _ = network_sender.send(Payload::Leave(game_state.local_player.id));
             break;
         }
         next_frame().await;

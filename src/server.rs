@@ -20,7 +20,7 @@ struct Args {
 }
 
 struct Server {
-    clients: Arc<Mutex<HashMap<String, TcpStream>>>,
+    clients: Arc<Mutex<HashMap<u32, TcpStream>>>,
     client_counter: Arc<Mutex<u32>>,
 }
 
@@ -56,13 +56,13 @@ impl Server {
 
     fn handle_client(
         mut stream: TcpStream,
-        clients: Arc<Mutex<HashMap<String, TcpStream>>>,
+        clients: Arc<Mutex<HashMap<u32, TcpStream>>>,
         counter: Arc<Mutex<u32>>,
     ) {
         let client_id = {
             let mut counter = counter.lock().unwrap();
             *counter += 1;
-            format!("client_{}", *counter)
+            *counter
         };
 
         println!("New client connected: {}", client_id);
@@ -73,7 +73,7 @@ impl Server {
             clients.insert(client_id.clone(), stream_clone);
         }
 
-        let mut buffer = [0; 1024];
+        let mut buffer = [0; 256];
         loop {
             match stream.read(&mut buffer) {
                 Ok(0) => {
@@ -90,7 +90,7 @@ impl Server {
                             if let Ok(_payload) =
                                 bincode::deserialize::<Payload>(&buffer[4..4 + len])
                             {
-                                Self::broadcast_to_others(&clients, &client_id, &buffer[..4 + len]);
+                                Self::broadcast_to_others(&clients, client_id, &buffer[..4 + len]);
                             }
                         }
                     }
@@ -105,17 +105,17 @@ impl Server {
     }
 
     fn broadcast_to_others(
-        clients: &Arc<Mutex<HashMap<String, TcpStream>>>,
-        sender_id: &str,
+        clients: &Arc<Mutex<HashMap<u32, TcpStream>>>,
+        sender_id: u32,
         message: &[u8],
     ) {
         let mut clients = clients.lock().unwrap();
         let mut disconnected_clients = Vec::new();
 
-        for (client_id, stream) in clients.iter_mut() {
+        for (&client_id, stream) in clients.iter_mut() {
             if client_id != sender_id {
                 if stream.write_all(message).is_err() {
-                    disconnected_clients.push(client_id.clone());
+                    disconnected_clients.push(client_id);
                 }
             }
         }

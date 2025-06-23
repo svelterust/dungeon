@@ -5,6 +5,6 @@ This game intentionally avoids bloated libraries. Handcrafted code is more delig
 ```sh
 nix develop
 cargo run --bin server # run server
-cargo run --bin client # run client, like player 1
-cargo run --bin client # run client, like player 2
+cargo run --bin client # player 1
+cargo run --bin client # player 2
 ```
