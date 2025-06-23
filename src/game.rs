@@ -71,7 +71,7 @@ impl GameState {
     pub fn should_send_position(&self) -> bool {
         let dx = self.local_player.x - self.last_sent_x;
         let dy = self.local_player.y - self.last_sent_y;
-        dx.abs() > 0.5 || dy.abs() > 0.5
+        dx.abs() > 0.1 || dy.abs() > 0.1
     }
 
     pub fn mark_position_sent(&mut self) {
@@ -88,17 +88,26 @@ impl GameState {
                     player.y = *y;
                 } else {
                     self.remote_players.push(Player {
-                        id: 1,
+                        id: 999, // Remote player ID
                         x: *x,
                         y: *y,
                     });
                 }
             }
             Payload::Join(id) => {
-                println!("Player joined: {}", id);
+                // Add remote player if not already present
+                if !self.remote_players.iter().any(|p| p.id == *id) && *id != self.local_player.id {
+                    self.remote_players.push(Player {
+                        id: *id,
+                        x: screen_width() / 2.0,
+                        y: screen_height() / 2.0,
+                    });
+                    println!("Player {} joined", id);
+                }
             }
             Payload::Leave(id) => {
-                println!("Player left: {}", id);
+                self.remote_players.retain(|p| p.id != *id);
+                println!("Player {} left", id);
             }
         }
     }
@@ -134,9 +143,12 @@ pub async fn run_client_game(
             }
         }
 
-        // Process network messages
+        // Process ALL network messages immediately
+        let mut processed = 0;
         while let Ok(payload) = network_receiver.try_recv() {
             game_state.handle_network_message(&payload);
+            processed += 1;
+            if processed > 100 { break; } // Prevent infinite loop
         }
 
         // Draw game objects

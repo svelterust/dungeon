@@ -67,13 +67,16 @@ impl Server {
 
         println!("New client connected: {}", client_id);
 
+        stream.set_nodelay(true).expect("Failed to set nodelay");
         let stream_clone = stream.try_clone().expect("Failed to clone stream");
         {
             let mut clients = clients.lock().unwrap();
-            clients.insert(client_id.clone(), stream_clone);
+            clients.insert(client_id, stream_clone);
         }
 
-        let mut buffer = [0; 256];
+        let mut buffer = [0; 1024];
+        let mut message_buffer = Vec::new();
+        
         loop {
             match stream.read(&mut buffer) {
                 Ok(0) => {
@@ -83,15 +86,22 @@ impl Server {
                     break;
                 }
                 Ok(n) => {
-                    if n >= 4 {
-                        let len = u32::from_le_bytes([buffer[0], buffer[1], buffer[2], buffer[3]])
-                            as usize;
-                        if n >= 4 + len {
-                            if let Ok(_payload) =
-                                bincode::deserialize::<Payload>(&buffer[4..4 + len])
-                            {
-                                Self::broadcast_to_others(&clients, client_id, &buffer[..4 + len]);
+                    message_buffer.extend_from_slice(&buffer[..n]);
+                    
+                    // Process all complete messages
+                    while message_buffer.len() >= 4 {
+                        let len = u32::from_le_bytes([
+                            message_buffer[0], message_buffer[1], 
+                            message_buffer[2], message_buffer[3],
+                        ]) as usize;
+                        
+                        if message_buffer.len() >= 4 + len {
+                            if let Ok(_payload) = bincode::deserialize::<Payload>(&message_buffer[4..4 + len]) {
+                                Self::broadcast_to_others(&clients, client_id, &message_buffer[..4 + len]);
                             }
+                            message_buffer.drain(..4 + len);
+                        } else {
+                            break; // Wait for more data
                         }
                     }
                 }
@@ -114,7 +124,7 @@ impl Server {
 
         for (&client_id, stream) in clients.iter_mut() {
             if client_id != sender_id {
-                if stream.write_all(message).is_err() {
+                if stream.write_all(message).is_err() || stream.flush().is_err() {
                     disconnected_clients.push(client_id);
                 }
             }

@@ -31,6 +31,7 @@ impl NetworkClient {
     ) -> Result<Self, std::io::Error> {
         // Connect to server
         let stream = TcpStream::connect(address)?;
+        stream.set_nodelay(true)?;
         let mut read_stream = stream.try_clone()?;
         let write_stream = stream;
         println!("Connected to server at {address}");
@@ -39,7 +40,8 @@ impl NetworkClient {
         let incoming_handle = {
             let incoming = incoming.clone();
             thread::spawn(move || {
-                let mut buffer = [0; 256];
+                let mut buffer = [0; 1024];
+                let mut message_buffer = Vec::new();
                 loop {
                     match read_stream.read(&mut buffer) {
                         Ok(0) => {
@@ -47,18 +49,24 @@ impl NetworkClient {
                             break;
                         }
                         Ok(n) => {
-                            if n >= 4 {
+                            message_buffer.extend_from_slice(&buffer[..n]);
+                            
+                            // Process all complete messages
+                            while message_buffer.len() >= 4 {
                                 let len = u32::from_le_bytes([
-                                    buffer[0], buffer[1], buffer[2], buffer[3],
+                                    message_buffer[0], message_buffer[1], 
+                                    message_buffer[2], message_buffer[3],
                                 ]) as usize;
-                                if n >= 4 + len {
-                                    if let Ok(payload) =
-                                        bincode::deserialize::<Payload>(&buffer[4..4 + len])
-                                    {
+                                
+                                if message_buffer.len() >= 4 + len {
+                                    if let Ok(payload) = bincode::deserialize::<Payload>(&message_buffer[4..4 + len]) {
                                         if incoming.send(payload).is_err() {
-                                            break;
+                                            return;
                                         }
                                     }
+                                    message_buffer.drain(..4 + len);
+                                } else {
+                                    break; // Wait for more data
                                 }
                             }
                         }
@@ -76,6 +84,9 @@ impl NetworkClient {
                     if let Ok(data) = bincode::serialize(&payload) {
                         let len = (data.len() as u32).to_le_bytes();
                         if stream.write_all(&len).is_err() || stream.write_all(&data).is_err() {
+                            break;
+                        }
+                        if stream.flush().is_err() {
                             break;
                         }
                     }
