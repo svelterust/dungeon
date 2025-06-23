@@ -1,5 +1,23 @@
+//! Dungeon multiplayer game library
+//!
+//! This library provides the core game functionality for a multiplayer dungeon game
+//! with boss fights, PvP combat, and real-time networking.
+
 use serde::{Deserialize, Serialize};
 
+// Core modules
+pub mod constants;
+pub mod entities;
+pub mod systems;
+pub mod game_state;
+pub mod game;
+
+// Re-export commonly used items
+pub use entities::{Player, Boss, Bullet, AreaAttack, DamageIndicator};
+pub use game_state::{GameState, run_client_game};
+pub use game::run_client_game as run_game;
+
+/// Network payload messages for multiplayer communication
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Payload {
     Move(u32, f32, f32), // player_id, x, y

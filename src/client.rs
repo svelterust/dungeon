@@ -1,11 +1,7 @@
-// Modules
-mod game;
-
-// Miports
+// Imports
 use anyhow::Result;
 use argh::FromArgs;
-use dungeon::Payload;
-use game::run_client_game;
+use dungeon::{Payload, run_client_game};
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::sync::mpsc::{self, Receiver, Sender};
