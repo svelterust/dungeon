@@ -1,6 +1,7 @@
 //! Player entity with core functionality
 
 use crate::constants::{player, ui};
+use crate::utils;
 use macroquad::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -54,8 +55,8 @@ impl Player {
 
     /// Respawn the player at a random safe location
     pub fn respawn(&mut self) {
-        self.x = macroquad::rand::gen_range(player::RADIUS, screen_width() - player::RADIUS);
-        self.y = macroquad::rand::gen_range(screen_height() / 2.0, screen_height() - player::RADIUS);
+        self.x = utils::rand::gen_range(player::RADIUS, screen_width() - player::RADIUS);
+        self.y = utils::rand::gen_range(screen_height() / 2.0, screen_height() - player::RADIUS);
         self.health = self.max_health;
         self.is_alive = true;
         self.respawn_timer = 0.0;

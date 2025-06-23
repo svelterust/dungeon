@@ -5,16 +5,26 @@
 
 use serde::{Deserialize, Serialize};
 
-// Core modules
+// Core modules - always available
 pub mod constants;
+pub mod utils;
+
+// Client-specific modules
+#[cfg(feature = "client")]
 pub mod entities;
+#[cfg(feature = "client")]
 pub mod systems;
+#[cfg(feature = "client")]
 pub mod game_state;
+#[cfg(feature = "client")]
 pub mod game;
 
-// Re-export commonly used items
+// Re-export commonly used items - only for client
+#[cfg(feature = "client")]
 pub use entities::{Player, Boss, Bullet, AreaAttack, DamageIndicator};
+#[cfg(feature = "client")]
 pub use game_state::{GameState, run_client_game};
+#[cfg(feature = "client")]
 pub use game::run_client_game as run_game;
 
 /// Network payload messages for multiplayer communication

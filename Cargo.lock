@@ -147,6 +147,7 @@ dependencies = [
  "argh",
  "bincode",
  "macroquad",
+ "quad-rand",
  "serde",
 ]
 

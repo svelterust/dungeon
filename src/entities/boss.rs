@@ -2,6 +2,7 @@
 
 use crate::constants::{boss, ui};
 use crate::entities::Player;
+use crate::utils;
 use macroquad::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -158,8 +159,8 @@ impl Boss {
 
     /// Set a random target position near the given player
     fn set_random_target_near_player(&mut self, player: &Player) {
-        self.target_x = player.x + macroquad::rand::gen_range(-boss::MOVEMENT_VARIANCE, boss::MOVEMENT_VARIANCE);
-        self.target_y = player.y + macroquad::rand::gen_range(-boss::MOVEMENT_VARIANCE, boss::MOVEMENT_VARIANCE);
+        self.target_x = player.x + utils::rand::gen_range(-boss::MOVEMENT_VARIANCE, boss::MOVEMENT_VARIANCE);
+        self.target_y = player.y + utils::rand::gen_range(-boss::MOVEMENT_VARIANCE, boss::MOVEMENT_VARIANCE);
         self.clamp_target_to_screen();
     }
 
