@@ -1,6 +1,5 @@
 // Imports
 use argh::FromArgs;
-use bincode;
 use dungeon::Payload;
 use std::collections::HashMap;
 use std::io::{Read, Write};
