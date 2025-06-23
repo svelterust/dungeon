@@ -1,4 +1,3 @@
-use anyhow::Result;
 use argh::FromArgs;
 use serde_json;
 use std::collections::HashMap;
