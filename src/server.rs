@@ -1,14 +1,16 @@
+// Modules
+mod game;
+
+// Imports
+use anyhow::Result;
 use argh::FromArgs;
+use game::Payload;
 use serde_json;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
-
-mod game;
-
-use game::Payload;
 
 #[derive(FromArgs)]
 /// Dungeon multiplayer server
@@ -76,7 +78,7 @@ impl Server {
         loop {
             match stream.read(&mut buffer) {
                 Ok(0) => {
-                    println!("Client {} disconnected", client_id);
+                    println!("Client {client_id} disconnected");
                     let mut clients = clients.lock().unwrap();
                     clients.remove(&client_id);
                     break;
@@ -122,6 +124,5 @@ fn main() -> std::io::Result<()> {
     // Start the server
     let Args { port } = argh::from_env::<Args>();
     let server = Server::new();
-    let address = format!("0.0.0.0:{port}");
-    server.start(&address)
+    server.start(&format!("0.0.0.0:{port}"))
 }

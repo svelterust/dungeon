@@ -13,7 +13,7 @@ use std::thread;
 #[derive(FromArgs)]
 /// Dungeon multiplayer client
 struct Args {
-    #[argh(option, short = 'a', default = "\"localhost:8080\".to_string()")]
+    #[argh(option, short = 'a', default = "\"0.0.0.0:8080\".to_string()")]
     /// server address to connect to
     address: String,
 }
@@ -32,7 +32,7 @@ impl NetworkClient {
         let stream = TcpStream::connect(address)?;
         let mut read_stream = stream.try_clone()?;
         let write_stream = stream;
-        println!("Connected to server at {}", address);
+        println!("Connected to server at {address}");
 
         // Handle incoming messages
         let incoming_handle = {

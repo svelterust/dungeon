@@ -118,8 +118,6 @@ impl GameState {
     }
 }
 
-
-
 pub async fn run_client_game(
     network_sender: Sender<Payload>,
     network_receiver: Receiver<Payload>,
