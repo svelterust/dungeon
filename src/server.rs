@@ -229,9 +229,10 @@ impl Server {
 
         for (&client_id, stream) in clients.iter_mut() {
             if client_id != sender_id
-                && (stream.write_all(message).is_err() || stream.flush().is_err()) {
-                    disconnected_clients.push(client_id);
-                }
+                && (stream.write_all(message).is_err() || stream.flush().is_err())
+            {
+                disconnected_clients.push(client_id);
+            }
         }
 
         for client_id in disconnected_clients {
