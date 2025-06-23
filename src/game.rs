@@ -26,7 +26,6 @@ pub struct GameState {
     pub last_sent_y: f32,
 }
 
-#[allow(dead_code)]
 impl GameState {
     pub fn new(player_name: &str) -> Self {
         let local_player = Player {
@@ -86,8 +85,7 @@ impl GameState {
     pub fn handle_network_message(&mut self, payload: &Payload) {
         match payload {
             Payload::Move { x, y } => {
-                // For now, simple approach: one remote player
-                // In a real game, you'd need player IDs
+                // Simple approach: one remote player
                 if let Some(player) = self.remote_players.first_mut() {
                     player.x = *x;
                     player.y = *y;
@@ -102,11 +100,9 @@ impl GameState {
             }
             Payload::Join { name } => {
                 println!("Player joined: {}", name);
-                // Could add to remote_players list here
             }
             Payload::Leave { name } => {
                 println!("Player left: {}", name);
-                // Could remove from remote_players list here
             }
         }
     }
@@ -122,30 +118,8 @@ impl GameState {
     }
 }
 
-#[allow(dead_code)]
-pub async fn run_standalone_game() -> Result<()> {
-    loop {
-        clear_background(WHITE);
 
-        // Original demo content
-        draw_line(40.0, 40.0, 100.0, 200.0, 15.0, BLUE);
-        draw_rectangle(screen_width() / 2.0 - 60.0, 100.0, 120.0, 60.0, GREEN);
-        draw_circle(screen_width() - 45.0, screen_height() - 45.0, 30.0, PURPLE);
 
-        // Demo payload
-        draw_text("STANDALONE MODE", 20.0, 30.0, 25.0, BLACK);
-        draw_text("Press ESC to quit", 20.0, 60.0, 18.0, GRAY);
-
-        if is_key_pressed(KeyCode::Escape) {
-            break;
-        }
-
-        next_frame().await;
-    }
-    Ok(())
-}
-
-#[allow(dead_code)]
 pub async fn run_client_game(
     network_sender: Sender<Payload>,
     network_receiver: Receiver<Payload>,
@@ -153,13 +127,10 @@ pub async fn run_client_game(
 ) -> Result<()> {
     let mut game_state = GameState::new("Player");
 
-    // Send initial join message
-    let join_payload = Payload::Join {
+    // Send join message
+    let _ = network_sender.send(Payload::Join {
         name: game_state.local_player.name.clone(),
-    };
-    if network_sender.send(join_payload).is_err() {
-        eprintln!("Failed to send join message");
-    }
+    });
 
     loop {
         clear_background(WHITE);
@@ -200,11 +171,9 @@ pub async fn run_client_game(
         game_state.draw();
 
         if is_key_pressed(KeyCode::Escape) {
-            // Send leave message
-            let leave_payload = Payload::Leave {
+            let _ = network_sender.send(Payload::Leave {
                 name: game_state.local_player.name.clone(),
-            };
-            let _ = network_sender.send(leave_payload);
+            });
             break;
         }
         next_frame().await;

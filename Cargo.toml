@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [[bin]]
-name = "dungeon-client"
-path = "src/client_main.rs"
+name = "client"
+path = "src/client.rs"
 
 [[bin]]
-name = "dungeon-server"
-path = "src/server_main.rs"
+name = "server"
+path = "src/server.rs"
 
 [dependencies]
 anyhow = "1.0"
