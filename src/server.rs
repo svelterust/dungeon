@@ -1,10 +1,7 @@
-// Modules
-mod game;
-
 // Imports
 use argh::FromArgs;
 use bincode;
-use game::Payload;
+use dungeon::Payload;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -76,7 +73,7 @@ impl Server {
 
         let mut buffer = [0; 1024];
         let mut message_buffer = Vec::new();
-        
+
         loop {
             match stream.read(&mut buffer) {
                 Ok(0) => {
@@ -87,21 +84,29 @@ impl Server {
                 }
                 Ok(n) => {
                     message_buffer.extend_from_slice(&buffer[..n]);
-                    
+
                     // Process all complete messages
                     while message_buffer.len() >= 4 {
                         let len = u32::from_le_bytes([
-                            message_buffer[0], message_buffer[1], 
-                            message_buffer[2], message_buffer[3],
+                            message_buffer[0],
+                            message_buffer[1],
+                            message_buffer[2],
+                            message_buffer[3],
                         ]) as usize;
-                        
+
                         if message_buffer.len() >= 4 + len {
-                            if let Ok(_payload) = bincode::deserialize::<Payload>(&message_buffer[4..4 + len]) {
-                                Self::broadcast_to_others(&clients, client_id, &message_buffer[..4 + len]);
+                            if let Ok(_payload) =
+                                bincode::deserialize::<Payload>(&message_buffer[4..4 + len])
+                            {
+                                Self::broadcast_to_others(
+                                    &clients,
+                                    client_id,
+                                    &message_buffer[..4 + len],
+                                );
                             }
                             message_buffer.drain(..4 + len);
                         } else {
-                            break; // Wait for more data
+                            break;
                         }
                     }
                 }

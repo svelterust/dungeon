@@ -1,14 +1,7 @@
 use anyhow::Result;
+use dungeon::Payload;
 use macroquad::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::sync::mpsc::{Receiver, Sender};
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum Payload {
-    Move(f32, f32),
-    Join(u32),
-    Leave(u32),
-}
 
 #[derive(Debug, Clone)]
 pub struct Player {
@@ -17,11 +10,10 @@ pub struct Player {
     pub y: f32,
 }
 
+#[allow(dead_code)]
 pub struct GameState {
     pub local_player: Player,
     pub remote_players: Vec<Player>,
-    pub last_sent_x: f32,
-    pub last_sent_y: f32,
 }
 
 impl GameState {
@@ -33,8 +25,6 @@ impl GameState {
         };
 
         GameState {
-            last_sent_x: local_player.x,
-            last_sent_y: local_player.y,
             local_player,
             remote_players: Vec::new(),
         }
@@ -66,17 +56,6 @@ impl GameState {
         self.local_player.y = self.local_player.y.max(15.0).min(screen_height() - 15.0);
 
         moved
-    }
-
-    pub fn should_send_position(&self) -> bool {
-        let dx = self.local_player.x - self.last_sent_x;
-        let dy = self.local_player.y - self.last_sent_y;
-        dx.abs() > 0.1 || dy.abs() > 0.1
-    }
-
-    pub fn mark_position_sent(&mut self) {
-        self.last_sent_x = self.local_player.x;
-        self.last_sent_y = self.local_player.y;
     }
 
     pub fn handle_network_message(&mut self, payload: &Payload) {
@@ -135,12 +114,9 @@ pub async fn run_client_game(
         // Handle input and movement
         clear_background(WHITE);
         let moved = game_state.update_input();
-        if moved && game_state.should_send_position() {
+        if moved {
             let move_payload = Payload::Move(game_state.local_player.x, game_state.local_player.y);
-
-            if network_sender.send(move_payload).is_ok() {
-                game_state.mark_position_sent();
-            }
+            let _ = network_sender.send(move_payload);
         }
 
         // Process ALL network messages immediately
@@ -148,7 +124,9 @@ pub async fn run_client_game(
         while let Ok(payload) = network_receiver.try_recv() {
             game_state.handle_network_message(&payload);
             processed += 1;
-            if processed > 100 { break; } // Prevent infinite loop
+            if processed > 100 {
+                break;
+            } // Prevent infinite loop
         }
 
         // Draw game objects

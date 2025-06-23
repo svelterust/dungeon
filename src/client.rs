@@ -4,7 +4,8 @@ mod game;
 // Miports
 use anyhow::Result;
 use argh::FromArgs;
-use game::{Payload, run_client_game};
+use dungeon::Payload;
+use game::run_client_game;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -50,16 +51,20 @@ impl NetworkClient {
                         }
                         Ok(n) => {
                             message_buffer.extend_from_slice(&buffer[..n]);
-                            
+
                             // Process all complete messages
                             while message_buffer.len() >= 4 {
                                 let len = u32::from_le_bytes([
-                                    message_buffer[0], message_buffer[1], 
-                                    message_buffer[2], message_buffer[3],
+                                    message_buffer[0],
+                                    message_buffer[1],
+                                    message_buffer[2],
+                                    message_buffer[3],
                                 ]) as usize;
-                                
+
                                 if message_buffer.len() >= 4 + len {
-                                    if let Ok(payload) = bincode::deserialize::<Payload>(&message_buffer[4..4 + len]) {
+                                    if let Ok(payload) =
+                                        bincode::deserialize::<Payload>(&message_buffer[4..4 + len])
+                                    {
                                         if incoming.send(payload).is_err() {
                                             return;
                                         }
@@ -111,13 +116,13 @@ async fn main() -> Result<()> {
     // Start network client and run game loop
     let Args { address } = argh::from_env::<Args>();
     println!("Connecting to server at {address}...");
-    
+
     // Generate unique client ID from timestamp
     let player_id = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs() as u32;
-    
+
     NetworkClient::connect(&address, game_to_net_rx, net_to_game_tx)?;
     run_client_game(game_to_net_tx, net_to_game_rx, player_id).await
 }
