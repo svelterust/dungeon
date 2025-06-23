@@ -54,8 +54,8 @@ impl Player {
 
     /// Respawn the player at a random safe location
     pub fn respawn(&mut self) {
-        self.x = rand::gen_range(player::RADIUS, screen_width() - player::RADIUS);
-        self.y = rand::gen_range(screen_height() / 2.0, screen_height() - player::RADIUS);
+        self.x = macroquad::rand::gen_range(player::RADIUS, screen_width() - player::RADIUS);
+        self.y = macroquad::rand::gen_range(screen_height() / 2.0, screen_height() - player::RADIUS);
         self.health = self.max_health;
         self.is_alive = true;
         self.respawn_timer = 0.0;

@@ -123,7 +123,7 @@ impl GameState {
     /// Handle boss power abilities
     fn handle_boss_powers(&mut self, players: &[Player]) {
         if self.boss.should_use_power() {
-            let power_type = rand::gen_range(0, 3);
+            let power_type = macroquad::rand::gen_range(0, 3);
             match power_type {
                 0 => self.execute_boss_multi_shot(players),
                 1 => self.execute_boss_area_attack(players),

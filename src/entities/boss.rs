@@ -158,8 +158,8 @@ impl Boss {
 
     /// Set a random target position near the given player
     fn set_random_target_near_player(&mut self, player: &Player) {
-        self.target_x = player.x + rand::gen_range(-boss::MOVEMENT_VARIANCE, boss::MOVEMENT_VARIANCE);
-        self.target_y = player.y + rand::gen_range(-boss::MOVEMENT_VARIANCE, boss::MOVEMENT_VARIANCE);
+        self.target_x = player.x + macroquad::rand::gen_range(-boss::MOVEMENT_VARIANCE, boss::MOVEMENT_VARIANCE);
+        self.target_y = player.y + macroquad::rand::gen_range(-boss::MOVEMENT_VARIANCE, boss::MOVEMENT_VARIANCE);
         self.clamp_target_to_screen();
     }
 
