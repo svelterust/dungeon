@@ -67,7 +67,7 @@ impl GameState {
                     player.y = *y;
                 } else {
                     // Player not found, add them (this can happen if we missed their Join message)
-                    println!("Adding player {} from move message (missed join?)", player_id);
+                    println!("Adding player {player_id} from move message (missed join?)");
                     self.remote_players.push(Player {
                         id: *player_id,
                         x: *x,
@@ -85,9 +85,9 @@ impl GameState {
                     });
                     println!("Player {} joined (total remote players: {})", id, self.remote_players.len());
                 } else if *id == self.local_player.id {
-                    println!("Ignoring join message for local player {}", id);
+                    println!("Ignoring join message for local player {id}");
                 } else {
-                    println!("Player {} already exists, ignoring duplicate join", id);
+                    println!("Player {id} already exists, ignoring duplicate join");
                 }
             }
             Payload::Leave(id) => {
@@ -95,9 +95,9 @@ impl GameState {
                 self.remote_players.retain(|p| p.id != *id);
                 let final_count = self.remote_players.len();
                 if initial_count != final_count {
-                    println!("Player {} left (remaining remote players: {})", id, final_count);
+                    println!("Player {id} left (remaining remote players: {final_count})");
                 } else {
-                    println!("Received leave message for unknown player {}", id);
+                    println!("Received leave message for unknown player {id}");
                 }
             }
         }
