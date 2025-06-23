@@ -52,7 +52,7 @@ impl Server {
                     });
                 }
                 Err(e) => {
-                    eprintln!("Error accepting connection: {}", e);
+                    eprintln!("Error accepting connection: {e}");
                 }
             }
         }
@@ -71,7 +71,7 @@ impl Server {
             *counter
         };
 
-        println!("New client connected: {}", client_id);
+        println!("New client connected: {client_id}");
 
         stream.set_nodelay(true).expect("Failed to set nodelay");
         let stream_clone = stream.try_clone().expect("Failed to clone stream");
@@ -228,11 +228,10 @@ impl Server {
         let mut disconnected_clients = Vec::new();
 
         for (&client_id, stream) in clients.iter_mut() {
-            if client_id != sender_id {
-                if stream.write_all(message).is_err() || stream.flush().is_err() {
+            if client_id != sender_id
+                && (stream.write_all(message).is_err() || stream.flush().is_err()) {
                     disconnected_clients.push(client_id);
                 }
-            }
         }
 
         for client_id in disconnected_clients {
