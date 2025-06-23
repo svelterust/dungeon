@@ -12,6 +12,8 @@ pub struct Player {
     pub direction_y: f32,
     pub health: u32,
     pub max_health: u32,
+    pub respawn_timer: f32,
+    pub is_alive: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -37,6 +39,13 @@ pub struct Boss {
     pub move_timer: f32,
     pub target_x: f32,
     pub target_y: f32,
+    pub power_timer: f32,
+    pub shield_timer: f32,
+    pub shield_active: bool,
+    pub dash_timer: f32,
+    pub is_dashing: bool,
+    pub dash_target_x: f32,
+    pub dash_target_y: f32,
 }
 
 impl Boss {
@@ -54,6 +63,13 @@ impl Boss {
             move_timer: 0.0,
             target_x: x,
             target_y: y,
+            power_timer: 0.0,
+            shield_timer: 0.0,
+            shield_active: false,
+            dash_timer: 0.0,
+            is_dashing: false,
+            dash_target_x: x,
+            dash_target_y: y,
         }
     }
 
@@ -67,6 +83,13 @@ impl Boss {
         self.move_timer = 0.0;
         self.target_x = self.x;
         self.target_y = self.y;
+        self.power_timer = 0.0;
+        self.shield_timer = 0.0;
+        self.shield_active = false;
+        self.dash_timer = 0.0;
+        self.is_dashing = false;
+        self.dash_target_x = self.x;
+        self.dash_target_y = self.y;
     }
 
     pub fn update(&mut self, dt: f32, players: &[Player]) {
@@ -78,10 +101,36 @@ impl Boss {
         // Update timers
         self.shoot_timer += dt;
         self.move_timer += dt;
+        self.power_timer += dt;
+        self.dash_timer += dt;
+        if self.shield_active {
+            self.shield_timer += dt;
+            if self.shield_timer >= 3.0 {
+                self.shield_active = false;
+                self.shield_timer = 0.0;
+            }
+        }
+
+        // Handle dashing
+        if self.is_dashing {
+            let dx = self.dash_target_x - self.x;
+            let dy = self.dash_target_y - self.y;
+            let distance = (dx * dx + dy * dy).sqrt();
+
+            if distance > 10.0 {
+                let speed = 400.0 * dt; // Fast dash speed
+                self.x += (dx / distance) * speed;
+                self.y += (dy / distance) * speed;
+            } else {
+                self.is_dashing = false;
+                self.dash_timer = 0.0;
+            }
+            return; // Skip normal movement while dashing
+        }
 
         // Simple AI movement - move toward nearest player
-        if self.move_timer >= 2.0 {
-            if let Some(nearest_player) = players.iter().min_by_key(|p| {
+        if self.move_timer >= 2.0 && !self.is_dashing {
+            if let Some(nearest_player) = players.iter().filter(|p| p.is_alive).min_by_key(|p| {
                 let dx = p.x - self.x;
                 let dy = p.y - self.y;
                 (dx * dx + dy * dy) as i32
@@ -97,14 +146,16 @@ impl Boss {
         }
 
         // Move toward target
-        let dx = self.target_x - self.x;
-        let dy = self.target_y - self.y;
-        let distance = (dx * dx + dy * dy).sqrt();
+        if !self.is_dashing {
+            let dx = self.target_x - self.x;
+            let dy = self.target_y - self.y;
+            let distance = (dx * dx + dy * dy).sqrt();
 
-        if distance > 5.0 {
-            let speed = 50.0 * dt;
-            self.x += (dx / distance) * speed;
-            self.y += (dy / distance) * speed;
+            if distance > 5.0 {
+                let speed = 50.0 * dt;
+                self.x += (dx / distance) * speed;
+                self.y += (dy / distance) * speed;
+            }
         }
     }
 
@@ -117,7 +168,7 @@ impl Boss {
     }
 
     pub fn take_damage(&mut self, damage: u32) -> bool {
-        if !self.alive {
+        if !self.alive || self.shield_active {
             return false;
         }
 
@@ -130,6 +181,30 @@ impl Boss {
             self.health -= damage;
             false
         }
+    }
+
+    pub fn should_use_power(&self) -> bool {
+        self.alive && self.power_timer >= 8.0 && !self.is_dashing
+    }
+
+    pub fn should_dash(&self) -> bool {
+        self.alive && self.dash_timer >= 12.0 && !self.is_dashing
+    }
+
+    pub fn activate_shield(&mut self) {
+        self.shield_active = true;
+        self.shield_timer = 0.0;
+    }
+
+    pub fn start_dash(&mut self, target_x: f32, target_y: f32) {
+        self.is_dashing = true;
+        self.dash_target_x = target_x;
+        self.dash_target_y = target_y;
+        self.dash_timer = 0.0;
+    }
+
+    pub fn reset_power_timer(&mut self) {
+        self.power_timer = 0.0;
     }
 
     pub fn should_respawn(&self) -> bool {
@@ -178,12 +253,37 @@ impl Bullet {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct AreaAttack {
+    pub x: f32,
+    pub y: f32,
+    pub timer: f32,
+    pub max_time: f32,
+}
+
+impl AreaAttack {
+    pub fn new(x: f32, y: f32) -> Self {
+        Self {
+            x,
+            y,
+            timer: 0.0,
+            max_time: 1.0,
+        }
+    }
+
+    pub fn update(&mut self, dt: f32) -> bool {
+        self.timer += dt;
+        self.timer >= self.max_time
+    }
+}
+
 #[allow(dead_code)]
 pub struct GameState {
     pub local_player: Player,
     pub remote_players: Vec<Player>,
     pub bullets: Vec<Bullet>,
     pub boss: Boss,
+    pub area_attacks: Vec<AreaAttack>,
     pub network_sender: Option<Sender<Payload>>,
 }
 
@@ -197,6 +297,8 @@ impl GameState {
             direction_y: -1.0, // Initially facing up
             health: 100,
             max_health: 100,
+            respawn_timer: 0.0,
+            is_alive: true,
         };
 
         GameState {
@@ -204,6 +306,7 @@ impl GameState {
             remote_players: Vec::new(),
             bullets: Vec::new(),
             boss: Boss::new(),
+            area_attacks: Vec::new(),
             network_sender: None,
         }
     }
@@ -215,8 +318,32 @@ impl GameState {
     pub fn update_input(&mut self) -> bool {
         let mut moved = false;
 
+        // Handle respawning
+        if !self.local_player.is_alive {
+            let dt = get_frame_time();
+            self.local_player.respawn_timer += dt;
+            if self.local_player.respawn_timer >= 5.0 {
+                // Respawn player directly without borrowing issues
+                self.local_player.x = macroquad::rand::gen_range(50.0, screen_width() - 50.0);
+                self.local_player.y =
+                    macroquad::rand::gen_range(screen_height() / 2.0, screen_height() - 50.0);
+                self.local_player.health = self.local_player.max_health;
+                self.local_player.is_alive = true;
+                self.local_player.respawn_timer = 0.0;
+
+                if let Some(sender) = &self.network_sender {
+                    let _ = sender.send(Payload::PlayerRespawn(
+                        self.local_player.id,
+                        self.local_player.x,
+                        self.local_player.y,
+                    ));
+                }
+            }
+            return false;
+        }
+
         // Only allow movement if player is alive
-        if self.local_player.health == 0 {
+        if !self.local_player.is_alive {
             return false;
         }
 
@@ -260,7 +387,7 @@ impl GameState {
         self.local_player.y = self.local_player.y.max(15.0).min(screen_height() - 15.0);
 
         // Handle shooting (only if alive)
-        if is_key_pressed(KeyCode::Space) && self.local_player.health > 0 {
+        if is_key_pressed(KeyCode::Space) && self.local_player.is_alive {
             self.shoot_bullet();
         }
 
@@ -293,6 +420,20 @@ impl GameState {
         let dt = get_frame_time();
         self.bullets.retain_mut(|bullet| !bullet.update(dt));
 
+        // Update area attacks
+        self.area_attacks.retain_mut(|attack| !attack.update(dt));
+
+        // Update remote player respawn timers
+        for player in &mut self.remote_players {
+            if !player.is_alive {
+                player.respawn_timer += dt;
+                if player.respawn_timer >= 5.0 {
+                    // Remote players handle their own respawning
+                    // We just update the timer here
+                }
+            }
+        }
+
         // Check bullet collisions
         self.check_bullet_collisions();
     }
@@ -304,15 +445,20 @@ impl GameState {
             // Check boss bullets hitting players
             if bullet.is_boss_bullet {
                 // Check local player
-                let dx = bullet.x - self.local_player.x;
-                let dy = bullet.y - self.local_player.y;
-                let distance = (dx * dx + dy * dy).sqrt();
+                if self.local_player.is_alive && self.local_player.health > 0 {
+                    let dx = bullet.x - self.local_player.x;
+                    let dy = bullet.y - self.local_player.y;
+                    let distance = (dx * dx + dy * dy).sqrt();
 
-                if distance <= 18.0 {
-                    // Player radius (15) + bullet radius (3)
-                    if self.local_player.health > 0 {
+                    if distance <= 18.0 {
+                        // Player radius (15) + bullet radius (3)
                         self.local_player.health = self.local_player.health.saturating_sub(10);
                         bullets_to_remove.push(i);
+
+                        if self.local_player.health == 0 {
+                            self.local_player.is_alive = false;
+                            self.local_player.respawn_timer = 0.0;
+                        }
 
                         // Send health update to network
                         if let Some(sender) = &self.network_sender {
@@ -359,14 +505,43 @@ impl GameState {
     pub fn update_boss(&mut self) {
         let dt = get_frame_time();
 
-        // Collect all players for boss AI
-        let mut all_players = vec![self.local_player.clone()];
-        all_players.extend(self.remote_players.iter().cloned());
+        // Collect all alive players for boss AI
+        let mut all_players = Vec::new();
+        if self.local_player.is_alive {
+            all_players.push(self.local_player.clone());
+        }
+        all_players.extend(self.remote_players.iter().filter(|p| p.is_alive).cloned());
 
         self.boss.update(dt, &all_players);
 
+        // Handle boss powers
+        if self.boss.should_use_power() && !all_players.is_empty() {
+            let power_type = macroquad::rand::gen_range(0, 3);
+            match power_type {
+                0 => self.boss_multi_shot(&all_players),
+                1 => self.boss_area_attack(&all_players),
+                2 => self.boss_activate_shield(),
+                _ => {}
+            }
+            self.boss.reset_power_timer();
+        }
+
+        // Handle boss dash
+        if self.boss.should_dash() && !all_players.is_empty() {
+            if let Some(target_player) = all_players.iter().min_by_key(|p| {
+                let dx = p.x - self.boss.x;
+                let dy = p.y - self.boss.y;
+                (dx * dx + dy * dy) as i32
+            }) {
+                self.boss.start_dash(target_player.x, target_player.y);
+                if let Some(sender) = &self.network_sender {
+                    let _ = sender.send(Payload::BossDash(target_player.x, target_player.y));
+                }
+            }
+        }
+
         // Handle boss shooting
-        if self.boss.should_shoot() && !all_players.is_empty() {
+        if self.boss.should_shoot() && !all_players.is_empty() && !self.boss.is_dashing {
             // Find nearest player to shoot at
             if let Some(target_player) = all_players.iter().min_by_key(|p| {
                 let dx = p.x - self.boss.x;
@@ -408,6 +583,97 @@ impl GameState {
         }
     }
 
+    pub fn boss_multi_shot(&mut self, players: &[Player]) {
+        if let Some(target_player) = players.iter().min_by_key(|p| {
+            let dx = p.x - self.boss.x;
+            let dy = p.y - self.boss.y;
+            (dx * dx + dy * dy) as i32
+        }) {
+            let mut directions = Vec::new();
+
+            // Create 5 bullets in a spread pattern
+            for i in -2..=2 {
+                let angle_offset = i as f32 * 0.2;
+                let base_dx = target_player.x - self.boss.x;
+                let base_dy = target_player.y - self.boss.y;
+                let base_distance = (base_dx * base_dx + base_dy * base_dy).sqrt();
+
+                if base_distance > 0.0 {
+                    let base_angle = base_dy.atan2(base_dx);
+                    let new_angle = base_angle + angle_offset;
+                    let direction_x = new_angle.cos();
+                    let direction_y = new_angle.sin();
+
+                    directions.push((direction_x, direction_y));
+
+                    let bullet =
+                        Bullet::new_boss_bullet(self.boss.x, self.boss.y, direction_x, direction_y);
+                    self.bullets.push(bullet);
+                }
+            }
+
+            // Send multi-shot to network
+            if let Some(sender) = &self.network_sender {
+                let _ = sender.send(Payload::BossMultiShoot(
+                    self.boss.x,
+                    self.boss.y,
+                    directions,
+                ));
+            }
+        }
+    }
+
+    pub fn boss_area_attack(&mut self, players: &[Player]) {
+        if let Some(target_player) = players.iter().min_by_key(|p| {
+            let dx = p.x - self.boss.x;
+            let dy = p.y - self.boss.y;
+            (dx * dx + dy * dy) as i32
+        }) {
+            // Create area damage
+            let area_center_x = target_player.x;
+            let area_center_y = target_player.y;
+
+            // Check if local player is in area
+            if self.local_player.is_alive {
+                let dx = self.local_player.x - area_center_x;
+                let dy = self.local_player.y - area_center_y;
+                let distance = (dx * dx + dy * dy).sqrt();
+
+                if distance <= 100.0 {
+                    // Area damage radius
+                    self.local_player.health = self.local_player.health.saturating_sub(20);
+                    if self.local_player.health == 0 {
+                        self.local_player.is_alive = false;
+                        self.local_player.respawn_timer = 0.0;
+                    }
+
+                    if let Some(sender) = &self.network_sender {
+                        let _ = sender.send(Payload::PlayerHit(
+                            self.local_player.id,
+                            self.local_player.health,
+                        ));
+                    }
+                }
+            }
+
+            // Add visual area attack effect
+            self.area_attacks
+                .push(AreaAttack::new(area_center_x, area_center_y));
+
+            // Send area attack to network
+            if let Some(sender) = &self.network_sender {
+                let _ = sender.send(Payload::BossAreaAttack(area_center_x, area_center_y));
+            }
+        }
+    }
+
+    pub fn boss_activate_shield(&mut self) {
+        self.boss.activate_shield();
+        if let Some(sender) = &self.network_sender {
+            let _ = sender.send(Payload::BossShield(true));
+        }
+    }
+
     pub fn handle_network_message(&mut self, payload: &Payload) {
         match payload {
             Payload::Move(player_id, x, y) => {
@@ -426,6 +692,8 @@ impl GameState {
                         direction_y: -1.0,
                         health: 100,
                         max_health: 100,
+                        respawn_timer: 0.0,
+                        is_alive: true,
                     });
                 }
             }
@@ -440,6 +708,8 @@ impl GameState {
                         direction_y: -1.0,
                         health: 100,
                         max_health: 100,
+                        respawn_timer: 0.0,
+                        is_alive: true,
                     });
                     println!(
                         "Player {} joined (total remote players: {})",
@@ -476,10 +746,18 @@ impl GameState {
             Payload::PlayerHit(player_id, new_health) => {
                 if *player_id == self.local_player.id {
                     self.local_player.health = *new_health;
+                    if self.local_player.health == 0 {
+                        self.local_player.is_alive = false;
+                        self.local_player.respawn_timer = 0.0;
+                    }
                 } else if let Some(player) =
                     self.remote_players.iter_mut().find(|p| p.id == *player_id)
                 {
                     player.health = *new_health;
+                    if player.health == 0 {
+                        player.is_alive = false;
+                        player.respawn_timer = 0.0;
+                    }
                 }
             }
             Payload::BossHit(new_health) => {
@@ -495,6 +773,56 @@ impl GameState {
                 self.boss.health = 0;
                 self.boss.respawn_timer = 0.0;
             }
+            Payload::BossMultiShoot(x, y, directions) => {
+                for (direction_x, direction_y) in directions {
+                    let bullet = Bullet::new_boss_bullet(*x, *y, *direction_x, *direction_y);
+                    self.bullets.push(bullet);
+                }
+            }
+            Payload::BossDash(target_x, target_y) => {
+                self.boss.start_dash(*target_x, *target_y);
+            }
+            Payload::BossAreaAttack(center_x, center_y) => {
+                // Add visual area attack effect
+                self.area_attacks
+                    .push(AreaAttack::new(*center_x, *center_y));
+
+                // Check if local player is affected by area attack
+                if self.local_player.is_alive {
+                    let dx = self.local_player.x - center_x;
+                    let dy = self.local_player.y - center_y;
+                    let distance = (dx * dx + dy * dy).sqrt();
+
+                    if distance <= 100.0 {
+                        self.local_player.health = self.local_player.health.saturating_sub(20);
+                        if self.local_player.health == 0 {
+                            self.local_player.is_alive = false;
+                            self.local_player.respawn_timer = 0.0;
+                        }
+                    }
+                }
+            }
+            Payload::BossShield(active) => {
+                if *active {
+                    self.boss.activate_shield();
+                } else {
+                    self.boss.shield_active = false;
+                    self.boss.shield_timer = 0.0;
+                }
+            }
+            Payload::PlayerRespawn(player_id, x, y) => {
+                if *player_id == self.local_player.id {
+                    // This shouldn't happen since we handle our own respawn locally
+                } else if let Some(player) =
+                    self.remote_players.iter_mut().find(|p| p.id == *player_id)
+                {
+                    player.x = *x;
+                    player.y = *y;
+                    player.health = player.max_health;
+                    player.is_alive = true;
+                    player.respawn_timer = 0.0;
+                }
+            }
         }
     }
 
@@ -508,7 +836,28 @@ impl GameState {
 
         // Draw boss
         if self.boss.alive {
-            draw_circle(self.boss.x, self.boss.y, 50.0, DARKGREEN);
+            // Draw boss with shield effect
+            if self.boss.shield_active {
+                draw_circle(
+                    self.boss.x,
+                    self.boss.y,
+                    60.0,
+                    Color::new(0.0, 0.5, 1.0, 0.3),
+                );
+                draw_circle_lines(self.boss.x, self.boss.y, 60.0, 3.0, BLUE);
+            }
+
+            // Draw boss dash effect
+            if self.boss.is_dashing {
+                draw_circle(
+                    self.boss.x,
+                    self.boss.y,
+                    55.0,
+                    Color::new(1.0, 0.5, 0.0, 0.4),
+                );
+            }
+
+            draw_circle(self.boss.x, self.boss.y, 50.0, MAROON);
             draw_circle(self.boss.x, self.boss.y, 45.0, RED);
 
             // Draw boss health bar
@@ -519,7 +868,36 @@ impl GameState {
                 8.0,
                 self.boss.health,
                 self.boss.max_health,
+                RED,
             );
+
+            // Draw boss power indicators
+            let power_time_left = 8.0 - self.boss.power_timer;
+            if power_time_left > 0.0 && power_time_left <= 2.0 {
+                let warning_text = "BOSS POWER INCOMING!";
+                let text_width = measure_text(warning_text, None, 20, 1.0).width;
+                draw_text(
+                    warning_text,
+                    screen_width() / 2.0 - text_width / 2.0,
+                    50.0,
+                    20.0,
+                    ORANGE,
+                );
+            }
+
+            // Draw dash warning
+            let dash_time_left = 12.0 - self.boss.dash_timer;
+            if dash_time_left > 0.0 && dash_time_left <= 2.0 {
+                let dash_text = "BOSS DASH INCOMING!";
+                let text_width = measure_text(dash_text, None, 18, 1.0).width;
+                draw_text(
+                    dash_text,
+                    screen_width() / 2.0 - text_width / 2.0,
+                    70.0,
+                    18.0,
+                    YELLOW,
+                );
+            }
         } else {
             // Draw respawn timer
             let respawn_time_left = 5.0 - self.boss.respawn_timer;
@@ -537,15 +915,10 @@ impl GameState {
         }
 
         // Draw local player (blue) with direction indicator
-        let player_color = if self.local_player.health > 0 {
-            BLUE
-        } else {
-            LIGHTGRAY
-        };
-        draw_circle(self.local_player.x, self.local_player.y, 15.0, player_color);
+        if self.local_player.is_alive {
+            draw_circle(self.local_player.x, self.local_player.y, 15.0, BLUE);
 
-        // Draw direction arrow for local player
-        if self.local_player.health > 0 {
+            // Draw direction arrow for local player
             let arrow_length = 25.0;
             let arrow_end_x = self.local_player.x + self.local_player.direction_x * arrow_length;
             let arrow_end_y = self.local_player.y + self.local_player.direction_y * arrow_length;
@@ -557,38 +930,114 @@ impl GameState {
                 2.0,
                 DARKBLUE,
             );
+        } else {
+            // Draw ghost player with respawn timer
+            draw_circle(
+                self.local_player.x,
+                self.local_player.y,
+                15.0,
+                Color::new(0.5, 0.5, 0.5, 0.5),
+            );
+
+            let respawn_time_left = 5.0 - self.local_player.respawn_timer;
+            if respawn_time_left > 0.0 {
+                let respawn_text = format!("Respawning in: {:.1}s", respawn_time_left);
+                let text_width = measure_text(&respawn_text, None, 16, 1.0).width;
+                draw_text(
+                    &respawn_text,
+                    self.local_player.x - text_width / 2.0,
+                    self.local_player.y - 25.0,
+                    16.0,
+                    WHITE,
+                );
+            }
         }
 
-        // Draw local player health bar
-        self.draw_health_bar(
-            self.local_player.x - 20.0,
-            self.local_player.y - 25.0,
-            40.0,
-            4.0,
-            self.local_player.health,
-            self.local_player.max_health,
-        );
+        // Draw local player health bar (only if alive)
+        if self.local_player.is_alive {
+            self.draw_health_bar(
+                self.local_player.x - 20.0,
+                self.local_player.y - 25.0,
+                40.0,
+                4.0,
+                self.local_player.health,
+                self.local_player.max_health,
+                BLUE,
+            );
+        }
 
         // Draw remote players (red)
         for player in &self.remote_players {
-            let player_color = if player.health > 0 { RED } else { LIGHTGRAY };
-            draw_circle(player.x, player.y, 15.0, player_color);
+            if player.is_alive {
+                draw_circle(player.x, player.y, 15.0, RED);
 
-            // Draw remote player health bar
-            self.draw_health_bar(
-                player.x - 20.0,
-                player.y - 25.0,
-                40.0,
-                4.0,
-                player.health,
-                player.max_health,
+                // Draw remote player health bar
+                self.draw_health_bar(
+                    player.x - 20.0,
+                    player.y - 25.0,
+                    40.0,
+                    4.0,
+                    player.health,
+                    player.max_health,
+                    RED,
+                );
+            } else {
+                // Draw ghost remote player
+                draw_circle(player.x, player.y, 15.0, Color::new(0.8, 0.2, 0.2, 0.5));
+
+                let respawn_time_left = 5.0 - player.respawn_timer;
+                if respawn_time_left > 0.0 {
+                    let respawn_text = format!("Respawning: {:.1}s", respawn_time_left);
+                    let text_width = measure_text(&respawn_text, None, 14, 1.0).width;
+                    draw_text(
+                        &respawn_text,
+                        player.x - text_width / 2.0,
+                        player.y - 25.0,
+                        14.0,
+                        WHITE,
+                    );
+                }
+            }
+        }
+
+        // Draw area attacks
+        for area_attack in &self.area_attacks {
+            let progress = area_attack.timer / area_attack.max_time;
+            let radius = 100.0 * (1.0 - progress);
+            let alpha = 1.0 - progress;
+
+            // Draw expanding circle
+            draw_circle(
+                area_attack.x,
+                area_attack.y,
+                radius,
+                Color::new(1.0, 0.3, 0.0, alpha * 0.3),
             );
+            draw_circle_lines(
+                area_attack.x,
+                area_attack.y,
+                radius,
+                3.0,
+                Color::new(1.0, 0.5, 0.0, alpha),
+            );
+
+            // Draw warning at center
+            if progress < 0.5 {
+                let warning_alpha = (0.5 - progress) * 2.0;
+                draw_circle(
+                    area_attack.x,
+                    area_attack.y,
+                    10.0,
+                    Color::new(1.0, 0.0, 0.0, warning_alpha),
+                );
+            }
         }
 
         // Draw bullets
         for bullet in &self.bullets {
             if bullet.is_boss_bullet {
-                draw_circle(bullet.x, bullet.y, 5.0, DARKGREEN);
+                draw_circle(bullet.x, bullet.y, 5.0, MAROON);
+                draw_circle(bullet.x, bullet.y, 3.0, ORANGE); // Inner glow
             } else if bullet.owner_id == self.local_player.id {
                 draw_circle(bullet.x, bullet.y, 3.0, DARKBLUE);
             } else {
@@ -616,6 +1065,7 @@ impl GameState {
         height: f32,
         current_health: u32,
         max_health: u32,
+        _color: Color,
     ) {
         // Background
         draw_rectangle(x, y, width, height, BLACK);

@@ -183,6 +183,26 @@ impl Server {
                 // Broadcast boss death to all clients
                 Self::broadcast_to_all(clients, message);
             }
+            Payload::BossMultiShoot(_, _, _) => {
+                // Broadcast boss multi-shot to all clients
+                Self::broadcast_to_all(clients, message);
+            }
+            Payload::BossDash(_, _) => {
+                // Broadcast boss dash to all clients
+                Self::broadcast_to_all(clients, message);
+            }
+            Payload::BossAreaAttack(_, _) => {
+                // Broadcast boss area attack to all clients
+                Self::broadcast_to_all(clients, message);
+            }
+            Payload::BossShield(_) => {
+                // Broadcast boss shield to all clients
+                Self::broadcast_to_all(clients, message);
+            }
+            Payload::PlayerRespawn(_, _, _) => {
+                // Broadcast player respawn to all clients
+                Self::broadcast_to_all(clients, message);
+            }
         }
     }
 

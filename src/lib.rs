@@ -11,4 +11,9 @@ pub enum Payload {
     BossHit(u32),                   // new_boss_health
     BossSpawn(f32, f32),            // x, y
     BossDead,
+    BossMultiShoot(f32, f32, Vec<(f32, f32)>), // x, y, directions
+    BossDash(f32, f32),                        // target_x, target_y
+    BossAreaAttack(f32, f32),                  // center_x, center_y
+    BossShield(bool),                          // shield_active
+    PlayerRespawn(u32, f32, f32),              // player_id, x, y
 }
