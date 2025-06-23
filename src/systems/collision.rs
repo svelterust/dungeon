@@ -22,7 +22,7 @@ impl CollisionSystem {
         &mut self,
         bullets: &mut Vec<Bullet>,
         local_player: &mut Player,
-        remote_players: &mut Vec<Player>,
+        remote_players: &mut [Player],
         boss: &mut Boss,
         damage_indicators: &mut Vec<DamageIndicator>,
         network_sender: &Option<Sender<Payload>>,
@@ -53,7 +53,7 @@ impl CollisionSystem {
         &self,
         bullet: &Bullet,
         local_player: &mut Player,
-        remote_players: &mut Vec<Player>,
+        remote_players: &mut [Player],
         boss: &mut Boss,
         damage_indicators: &mut Vec<DamageIndicator>,
         network_sender: &Option<Sender<Payload>>,
@@ -113,7 +113,7 @@ impl CollisionSystem {
         &self,
         bullet: &Bullet,
         local_player: &mut Player,
-        remote_players: &mut Vec<Player>,
+        remote_players: &mut [Player],
         boss: &mut Boss,
         damage_indicators: &mut Vec<DamageIndicator>,
         network_sender: &Option<Sender<Payload>>,
@@ -123,51 +123,53 @@ impl CollisionSystem {
             && let Some(hit_player) = remote_players
                 .iter()
                 .find(|p| p.is_alive && bullet.collides_with(p.x, p.y, player::RADIUS))
-            {
-                // Send damage to remote player
-                if let Some(sender) = network_sender {
-                    let new_health = hit_player.health.saturating_sub(bullet.damage());
-                    let _ = sender.send(Payload::PlayerHit(hit_player.id, new_health));
+        {
+            // Send damage to remote player
+            if let Some(sender) = network_sender {
+                let new_health = hit_player.health.saturating_sub(bullet.damage());
+                let _ = sender.send(Payload::PlayerHit(hit_player.id, new_health));
 
-                    // If this would kill the player, send kill notification
-                    if new_health == 0 {
-                        local_player.kills += 1;
-                        let _ = sender.send(Payload::PlayerKill(local_player.id, hit_player.id));
-                    }
+                // If this would kill the player, send kill notification
+                if new_health == 0 {
+                    local_player.kills += 1;
+                    let _ = sender.send(Payload::PlayerKill(local_player.id, hit_player.id));
                 }
-                return true; // Remove bullet
             }
+            return true; // Remove bullet
+        }
 
         // Check remote player bullet hitting local player (PvP)
-        if bullet.owner_id != local_player.id && local_player.is_alive
-            && bullet.collides_with(local_player.x, local_player.y, player::RADIUS) {
-                let was_alive = local_player.is_alive;
-                let damage = bullet.damage();
-                let died = local_player.take_damage(damage);
+        if bullet.owner_id != local_player.id
+            && local_player.is_alive
+            && bullet.collides_with(local_player.x, local_player.y, player::RADIUS)
+        {
+            let was_alive = local_player.is_alive;
+            let damage = bullet.damage();
+            let died = local_player.take_damage(damage);
 
-                // Award kill to shooter if player was alive
-                if was_alive && died
-                    && let Some(shooter) =
-                        remote_players.iter_mut().find(|p| p.id == bullet.owner_id)
-                    {
-                        shooter.kills += 1;
-                    }
-
-                // Add PvP damage indicator
-                damage_indicators.push(DamageIndicator::new(
-                    local_player.x,
-                    local_player.y,
-                    damage,
-                    true,
-                ));
-
-                // Send health update to network
-                if let Some(sender) = network_sender {
-                    let _ = sender.send(Payload::PlayerHit(local_player.id, local_player.health));
-                }
-
-                return true; // Remove bullet
+            // Award kill to shooter if player was alive
+            if was_alive
+                && died
+                && let Some(shooter) = remote_players.iter_mut().find(|p| p.id == bullet.owner_id)
+            {
+                shooter.kills += 1;
             }
+
+            // Add PvP damage indicator
+            damage_indicators.push(DamageIndicator::new(
+                local_player.x,
+                local_player.y,
+                damage,
+                true,
+            ));
+
+            // Send health update to network
+            if let Some(sender) = network_sender {
+                let _ = sender.send(Payload::PlayerHit(local_player.id, local_player.health));
+            }
+
+            return true; // Remove bullet
+        }
 
         // Check player bullets hitting boss
         if boss.alive && bullet.collides_with(boss.x, boss.y, boss::RADIUS) {

@@ -1,7 +1,7 @@
 //! Network message handling system for multiplayer communication
 
-use crate::entities::{Player, Boss, Bullet, AreaAttack, DamageIndicator};
 use crate::Payload;
+use crate::entities::{AreaAttack, Boss, Bullet, DamageIndicator, Player};
 use macroquad::prelude::*;
 
 /// Handles processing of network messages and game state synchronization
@@ -29,7 +29,15 @@ impl NetworkSystem {
                 Self::handle_player_leave(*id, remote_players);
             }
             Payload::Shoot(player_id, x, y, direction_x, direction_y) => {
-                Self::handle_player_shoot(*player_id, *x, *y, *direction_x, *direction_y, local_player, bullets);
+                Self::handle_player_shoot(
+                    *player_id,
+                    *x,
+                    *y,
+                    *direction_x,
+                    *direction_y,
+                    local_player,
+                    bullets,
+                );
             }
             Payload::BossShoot(x, y, direction_x, direction_y) => {
                 Self::handle_boss_shoot(*x, *y, *direction_x, *direction_y, bullets);
@@ -53,7 +61,13 @@ impl NetworkSystem {
                 Self::handle_boss_dash(*target_x, *target_y, boss);
             }
             Payload::BossAreaAttack(center_x, center_y) => {
-                Self::handle_boss_area_attack(*center_x, *center_y, local_player, area_attacks, damage_indicators);
+                Self::handle_boss_area_attack(
+                    *center_x,
+                    *center_y,
+                    local_player,
+                    area_attacks,
+                    damage_indicators,
+                );
             }
             Payload::BossShield(active) => {
                 Self::handle_boss_shield(*active, boss);
@@ -62,7 +76,12 @@ impl NetworkSystem {
                 Self::handle_player_respawn(*player_id, *x, *y, local_player, remote_players);
             }
             Payload::PlayerDirection(player_id, direction_x, direction_y) => {
-                Self::handle_player_direction(*player_id, *direction_x, *direction_y, remote_players);
+                Self::handle_player_direction(
+                    *player_id,
+                    *direction_x,
+                    *direction_y,
+                    remote_players,
+                );
             }
             Payload::PlayerKill(killer_id, victim_id) => {
                 Self::handle_player_kill(*killer_id, *victim_id, local_player, remote_players);
@@ -90,11 +109,7 @@ impl NetworkSystem {
     }
 
     /// Handle player joining the game
-    fn handle_player_join(
-        player_id: u32,
-        local_player: &Player,
-        remote_players: &mut Vec<Player>,
-    ) {
+    fn handle_player_join(player_id: u32, local_player: &Player, remote_players: &mut Vec<Player>) {
         // Don't add local player or duplicates
         if player_id == local_player.id {
             println!("Ignoring join message for local player {player_id}");
@@ -120,7 +135,7 @@ impl NetworkSystem {
         let initial_count = remote_players.len();
         remote_players.retain(|p| p.id != player_id);
         let final_count = remote_players.len();
-        
+
         if initial_count != final_count {
             println!("Player {player_id} left (remaining remote players: {final_count})");
         } else {
@@ -162,7 +177,7 @@ impl NetworkSystem {
         player_id: u32,
         new_health: u32,
         local_player: &mut Player,
-        remote_players: &mut Vec<Player>,
+        remote_players: &mut [Player],
     ) {
         if player_id == local_player.id {
             local_player.health = new_health;
@@ -261,17 +276,18 @@ impl NetworkSystem {
         x: f32,
         y: f32,
         local_player: &Player,
-        remote_players: &mut Vec<Player>,
+        remote_players: &mut [Player],
     ) {
         // Local player handles their own respawn
         if player_id != local_player.id
-            && let Some(player) = remote_players.iter_mut().find(|p| p.id == player_id) {
-                player.x = x;
-                player.y = y;
-                player.health = player.max_health;
-                player.is_alive = true;
-                player.respawn_timer = 0.0;
-            }
+            && let Some(player) = remote_players.iter_mut().find(|p| p.id == player_id)
+        {
+            player.x = x;
+            player.y = y;
+            player.health = player.max_health;
+            player.is_alive = true;
+            player.respawn_timer = 0.0;
+        }
     }
 
     /// Handle player direction update
@@ -279,7 +295,7 @@ impl NetworkSystem {
         player_id: u32,
         direction_x: f32,
         direction_y: f32,
-        remote_players: &mut Vec<Player>,
+        remote_players: &mut [Player],
     ) {
         if let Some(player) = remote_players.iter_mut().find(|p| p.id == player_id) {
             player.direction_x = direction_x;
@@ -292,7 +308,7 @@ impl NetworkSystem {
         killer_id: u32,
         victim_id: u32,
         local_player: &mut Player,
-        remote_players: &mut Vec<Player>,
+        remote_players: &mut [Player],
     ) {
         // Update kill count for killer
         if killer_id == local_player.id {
@@ -300,7 +316,7 @@ impl NetworkSystem {
         } else if let Some(killer) = remote_players.iter_mut().find(|p| p.id == killer_id) {
             killer.kills += 1;
         }
-        
+
         // Handle victim death
         if victim_id == local_player.id {
             // Local player was killed (already handled via PlayerHit)
@@ -326,11 +342,11 @@ mod tests {
     fn test_handle_player_join() {
         let local_player = Player::new(1, 100.0, 100.0);
         let mut remote_players = Vec::new();
-        
+
         NetworkSystem::handle_player_join(2, &local_player, &mut remote_players);
         assert_eq!(remote_players.len(), 1);
         assert_eq!(remote_players[0].id, 2);
-        
+
         // Test duplicate join
         NetworkSystem::handle_player_join(2, &local_player, &mut remote_players);
         assert_eq!(remote_players.len(), 1); // Should not add duplicate
@@ -338,11 +354,8 @@ mod tests {
 
     #[test]
     fn test_handle_player_leave() {
-        let mut remote_players = vec![
-            Player::new(2, 100.0, 100.0),
-            Player::new(3, 200.0, 200.0),
-        ];
-        
+        let mut remote_players = vec![Player::new(2, 100.0, 100.0), Player::new(3, 200.0, 200.0)];
+
         NetworkSystem::handle_player_leave(2, &mut remote_players);
         assert_eq!(remote_players.len(), 1);
         assert_eq!(remote_players[0].id, 3);
