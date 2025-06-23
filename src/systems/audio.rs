@@ -17,6 +17,7 @@ pub enum SoundType {
     Explosion,
     Join,
     PowerUp,
+    Dash,
 }
 
 impl SoundType {
@@ -29,6 +30,7 @@ impl SoundType {
             SoundType::Explosion => "assets/explosion.wav",
             SoundType::Join => "assets/join.wav",
             SoundType::PowerUp => "assets/powerup.wav",
+            SoundType::Dash => "assets/dash.wav",
         }
     }
 }
@@ -46,6 +48,7 @@ impl AudioSystem {
             SoundType::Explosion,
             SoundType::Join,
             SoundType::PowerUp,
+            SoundType::Dash,
         ];
 
         for sound_type in sound_types {
@@ -161,9 +164,15 @@ impl AudioSystem {
         self.play_power_up();
     }
 
-    /// Play boss dash sound (same as power-up)
+    /// Play boss dash sound
     pub fn play_boss_dash(&self) {
-        self.play_power_up();
+        self.play_sound_with_params(
+            SoundType::Dash,
+            PlaySoundParams {
+                looped: false,
+                volume: 0.9,
+            },
+        );
     }
 
     /// Play respawn sound (same as join)
@@ -184,5 +193,6 @@ mod tests {
         assert_eq!(SoundType::Explosion.file_path(), "assets/explosion.wav");
         assert_eq!(SoundType::Join.file_path(), "assets/join.wav");
         assert_eq!(SoundType::PowerUp.file_path(), "assets/powerup.wav");
+        assert_eq!(SoundType::Dash.file_path(), "assets/dash.wav");
     }
 }

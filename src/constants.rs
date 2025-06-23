@@ -16,16 +16,16 @@ pub mod player {
 pub mod boss {
     pub const RADIUS: f32 = 60.0;
     pub const INNER_RADIUS: f32 = 50.0;
-    pub const SHIELD_RADIUS: f32 = 70.0;
+    pub const SHIELD_RADIUS: f32 = 67.0;
     pub const DASH_EFFECT_RADIUS: f32 = 75.0;
-    pub const MAX_HEALTH: u32 = 1000;
-    pub const SPEED: f32 = 70.0;
-    pub const DASH_SPEED: f32 = 650.0;
-    pub const SHOOT_INTERVAL: f32 = 0.9;
+    pub const MAX_HEALTH: u32 = 500;
+    pub const SPEED: f32 = 60.0;
+    pub const DASH_SPEED: f32 = 600.0;
+    pub const SHOOT_INTERVAL: f32 = 1.4;
     pub const MOVE_INTERVAL: f32 = 1.5;
-    pub const POWER_INTERVAL: f32 = 4.0;
-    pub const DASH_INTERVAL: f32 = 6.0;
-    pub const SHIELD_DURATION: f32 = 7.0;
+    pub const POWER_INTERVAL: f32 = 6.0;
+    pub const DASH_INTERVAL: f32 = 4.0;
+    pub const SHIELD_DURATION: f32 = 3.0;
     pub const RESPAWN_TIME: f32 = 5.0;
     pub const SPAWN_Y: f32 = 100.0;
     pub const MOVEMENT_VARIANCE: f32 = 250.0;
