@@ -17,7 +17,7 @@ impl RenderSystem {
     /// Draw player count in top left
     fn draw_player_count(remote_players: &[Player]) {
         let total_players = 1 + remote_players.len();
-        let player_text = format!("Players Connected: {}", total_players);
+        let player_text = format!("Players Connected: {total_players}");
         draw_text(&player_text, ui::MARGIN, 30.0, ui::LINE_HEIGHT, BLACK);
     }
 

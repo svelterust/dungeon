@@ -372,7 +372,7 @@ impl Boss {
     fn draw_respawn_timer(&self) {
         let respawn_time_left = self.respawn_time_remaining();
         if respawn_time_left > 0.0 {
-            let respawn_text = format!("Boss respawning in: {:.1}s", respawn_time_left);
+            let respawn_text = format!("Boss respawning in: {respawn_time_left:.1}s");
             let text_width = measure_text(&respawn_text, None, ui::TEXT_SIZE_LARGE as u16, 1.0).width;
             draw_text(
                 &respawn_text,

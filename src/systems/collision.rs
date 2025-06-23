@@ -119,8 +119,8 @@ impl CollisionSystem {
         network_sender: &Option<Sender<Payload>>,
     ) -> bool {
         // Check local player bullet hitting remote players (PvP)
-        if bullet.owner_id == local_player.id {
-            if let Some(hit_player) = remote_players
+        if bullet.owner_id == local_player.id
+            && let Some(hit_player) = remote_players
                 .iter()
                 .find(|p| p.is_alive && bullet.collides_with(p.x, p.y, player::RADIUS))
             {
@@ -137,23 +137,21 @@ impl CollisionSystem {
                 }
                 return true; // Remove bullet
             }
-        }
 
         // Check remote player bullet hitting local player (PvP)
-        if bullet.owner_id != local_player.id && local_player.is_alive {
-            if bullet.collides_with(local_player.x, local_player.y, player::RADIUS) {
+        if bullet.owner_id != local_player.id && local_player.is_alive
+            && bullet.collides_with(local_player.x, local_player.y, player::RADIUS) {
                 let was_alive = local_player.is_alive;
                 let damage = bullet.damage();
                 let died = local_player.take_damage(damage);
 
                 // Award kill to shooter if player was alive
-                if was_alive && died {
-                    if let Some(shooter) =
+                if was_alive && died
+                    && let Some(shooter) =
                         remote_players.iter_mut().find(|p| p.id == bullet.owner_id)
                     {
                         shooter.kills += 1;
                     }
-                }
 
                 // Add PvP damage indicator
                 damage_indicators.push(DamageIndicator::new(
@@ -170,7 +168,6 @@ impl CollisionSystem {
 
                 return true; // Remove bullet
             }
-        }
 
         // Check player bullets hitting boss
         if boss.alive && bullet.collides_with(boss.x, boss.y, boss::RADIUS) {

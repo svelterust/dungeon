@@ -86,15 +86,14 @@ impl InputSystem {
         }
 
         // Update direction and send to network if changed
-        if local_player.set_direction(new_direction_x, new_direction_y) {
-            if let Some(sender) = network_sender {
+        if local_player.set_direction(new_direction_x, new_direction_y)
+            && let Some(sender) = network_sender {
                 let _ = sender.send(Payload::PlayerDirection(
                     local_player.id,
                     local_player.direction_x,
                     local_player.direction_y,
                 ));
             }
-        }
 
         moved
     }

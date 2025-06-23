@@ -212,14 +212,13 @@ impl GameState {
 
     /// Handle boss dash ability
     fn handle_boss_dash(&mut self, players: &[Player]) {
-        if self.boss.should_dash() {
-            if let Some(target_player) = self.find_nearest_player_to_boss(players) {
+        if self.boss.should_dash()
+            && let Some(target_player) = self.find_nearest_player_to_boss(players) {
                 self.boss.start_dash(target_player.x, target_player.y);
                 if let Some(sender) = &self.network_sender {
                     let _ = sender.send(Payload::BossDash(target_player.x, target_player.y));
                 }
             }
-        }
     }
 
     /// Handle boss shooting

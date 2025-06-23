@@ -83,7 +83,7 @@ impl NetworkSystem {
             player.y = y;
         } else if player_id != local_player.id {
             // Player not found, add them (missed join message)
-            println!("Adding player {} from move message (missed join?)", player_id);
+            println!("Adding player {player_id} from move message (missed join?)");
             let new_player = Player::new(player_id, x, y);
             remote_players.push(new_player);
         }
@@ -97,12 +97,12 @@ impl NetworkSystem {
     ) {
         // Don't add local player or duplicates
         if player_id == local_player.id {
-            println!("Ignoring join message for local player {}", player_id);
+            println!("Ignoring join message for local player {player_id}");
             return;
         }
 
         if remote_players.iter().any(|p| p.id == player_id) {
-            println!("Player {} already exists, ignoring duplicate join", player_id);
+            println!("Player {player_id} already exists, ignoring duplicate join");
             return;
         }
 
@@ -122,9 +122,9 @@ impl NetworkSystem {
         let final_count = remote_players.len();
         
         if initial_count != final_count {
-            println!("Player {} left (remaining remote players: {})", player_id, final_count);
+            println!("Player {player_id} left (remaining remote players: {final_count})");
         } else {
-            println!("Received leave message for unknown player {}", player_id);
+            println!("Received leave message for unknown player {player_id}");
         }
     }
 
@@ -264,15 +264,14 @@ impl NetworkSystem {
         remote_players: &mut Vec<Player>,
     ) {
         // Local player handles their own respawn
-        if player_id != local_player.id {
-            if let Some(player) = remote_players.iter_mut().find(|p| p.id == player_id) {
+        if player_id != local_player.id
+            && let Some(player) = remote_players.iter_mut().find(|p| p.id == player_id) {
                 player.x = x;
                 player.y = y;
                 player.health = player.max_health;
                 player.is_alive = true;
                 player.respawn_timer = 0.0;
             }
-        }
     }
 
     /// Handle player direction update
