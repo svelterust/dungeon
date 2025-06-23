@@ -64,9 +64,10 @@ impl NetworkClient {
                                 if message_buffer.len() >= 4 + len {
                                     if let Ok(payload) =
                                         bincode::deserialize::<Payload>(&message_buffer[4..4 + len])
-                                        && incoming.send(payload).is_err() {
-                                            return;
-                                        }
+                                        && incoming.send(payload).is_err()
+                                    {
+                                        return;
+                                    }
                                     message_buffer.drain(..4 + len);
                                 } else {
                                     break; // Wait for more data

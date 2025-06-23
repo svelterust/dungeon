@@ -27,7 +27,6 @@
         pkgs = import nixpkgs { inherit system overlays; };
         # rust = pkgs.rust-bin.nightly.latest.default.override {
         #   extensions = [ "rust-src" ];
-        #   targets = [ "wasm32-unknown-unknown" ];
         # };
         appInputs = with pkgs; [
           # rust
@@ -43,7 +42,9 @@
         devShell = pkgs.mkShell {
           buildInputs = appInputs;
           nativeBuildInputs = appInputs;
-          shellHook = ''export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${pkgs.lib.makeLibraryPath appInputs}"'';
+          shellHook = ''
+            export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${pkgs.lib.makeLibraryPath appInputs}"
+          '';
         };
       }
     );

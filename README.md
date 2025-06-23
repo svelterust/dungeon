@@ -14,3 +14,10 @@ cargo run --bin client # player 2
 ```sh
 cargo run --bin client --release -- -a 66.241.125.19:8080
 ```
+
+## Web frontend
+
+```
+cargo build --release --bin client --target wasm32-unknown-unknown && cp target/wasm32-unknown-unknown/release/client.wasm web/
+cd web/ && python -m http.server
+```
