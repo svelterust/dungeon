@@ -63,13 +63,50 @@ impl RenderSystem {
     fn draw_controls() {
         let controls = [
             ("ESC: Quit", screen_height() - 60.0),
-            ("WASD/Arrow Keys: Move", screen_height() - 40.0),
-            ("Space: Shoot", screen_height() - 20.0),
+            ("WASD: Move | Mouse: Aim & Shoot", screen_height() - 40.0),
+            ("Space/Left Click: Shoot", screen_height() - 20.0),
         ];
 
         for (text, y_pos) in controls {
             draw_text(text, ui::MARGIN, y_pos, ui::TEXT_SIZE_TINY, DARKGRAY);
         }
+    }
+
+    /// Draw crosshair at mouse position
+    pub fn draw_crosshair() {
+        let mouse_pos = mouse_position();
+        let crosshair_size = 10.0;
+        let crosshair_thickness = 2.0;
+        let background_radius = 15.0;
+        
+        // Draw semi-transparent background circle
+        draw_circle(
+            mouse_pos.0,
+            mouse_pos.1,
+            background_radius,
+            Color::new(0.0, 0.0, 0.0, 0.2),
+        );
+        
+        // Draw crosshair lines
+        draw_line(
+            mouse_pos.0 - crosshair_size,
+            mouse_pos.1,
+            mouse_pos.0 + crosshair_size,
+            mouse_pos.1,
+            crosshair_thickness,
+            RED,
+        );
+        draw_line(
+            mouse_pos.0,
+            mouse_pos.1 - crosshair_size,
+            mouse_pos.0,
+            mouse_pos.1 + crosshair_size,
+            crosshair_thickness,
+            RED,
+        );
+        
+        // Draw center dot
+        draw_circle(mouse_pos.0, mouse_pos.1, 1.5, RED);
     }
 
     /// Draw all game entities

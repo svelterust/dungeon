@@ -62,7 +62,7 @@ impl InputSystem {
     /// Handle player movement input
     fn handle_movement(
         local_player: &mut Player,
-        network_sender: &Option<Sender<Payload>>,
+        _network_sender: &Option<Sender<Payload>>,
     ) -> bool {
         let speed = player::SPEED * get_frame_time();
         let mut moved = false;

@@ -352,6 +352,7 @@ impl GameState {
             &self.area_attacks,
             &self.damage_indicators,
         );
+        RenderSystem::draw_crosshair();
     }
 
     /// Check if the player wants to quit
@@ -375,6 +376,9 @@ pub async fn run_client_game(
 ) -> Result<()> {
     let mut game_state = GameState::new(player_id);
     game_state.set_network_sender(network_sender.clone());
+
+    // Show mouse cursor for aiming
+    show_mouse(true);
 
     // Initialize audio system
     match AudioSystem::new().await {
