@@ -24,8 +24,11 @@ impl InputSystem {
             return false;
         }
 
+        // Update player direction to face mouse cursor
+        Self::update_mouse_direction(local_player, network_sender);
+
         // Handle shooting
-        if is_key_pressed(KeyCode::Space) {
+        if is_key_pressed(KeyCode::Space) || is_mouse_button_pressed(MouseButton::Left) {
             Self::handle_shooting(local_player, bullets, network_sender, audio_system);
         }
 
@@ -63,46 +66,53 @@ impl InputSystem {
     ) -> bool {
         let speed = player::SPEED * get_frame_time();
         let mut moved = false;
-        let mut new_direction_x = local_player.direction_x;
-        let mut new_direction_y = local_player.direction_y;
 
-        // Handle movement keys
+        // Handle movement keys (just movement, not direction)
         if is_key_down(KeyCode::Left) || is_key_down(KeyCode::A) {
             local_player.move_by(-speed, 0.0);
-            new_direction_x = -1.0;
-            new_direction_y = 0.0;
             moved = true;
         }
         if is_key_down(KeyCode::Right) || is_key_down(KeyCode::D) {
             local_player.move_by(speed, 0.0);
-            new_direction_x = 1.0;
-            new_direction_y = 0.0;
             moved = true;
         }
         if is_key_down(KeyCode::Up) || is_key_down(KeyCode::W) {
             local_player.move_by(0.0, -speed);
-            new_direction_x = 0.0;
-            new_direction_y = -1.0;
             moved = true;
         }
         if is_key_down(KeyCode::Down) || is_key_down(KeyCode::S) {
             local_player.move_by(0.0, speed);
-            new_direction_x = 0.0;
-            new_direction_y = 1.0;
             moved = true;
         }
 
-        // Update direction and send to network if changed
-        if local_player.set_direction(new_direction_x, new_direction_y)
-            && let Some(sender) = network_sender {
-                let _ = sender.send(Payload::PlayerDirection(
-                    local_player.id,
-                    local_player.direction_x,
-                    local_player.direction_y,
-                ));
-            }
-
         moved
+    }
+
+    /// Update player direction to face mouse cursor
+    fn update_mouse_direction(
+        local_player: &mut Player,
+        network_sender: &Option<Sender<Payload>>,
+    ) {
+        let mouse_pos = mouse_position();
+        let dx = mouse_pos.0 - local_player.x;
+        let dy = mouse_pos.1 - local_player.y;
+        
+        // Calculate normalized direction vector
+        let distance = (dx * dx + dy * dy).sqrt();
+        if distance > 0.0 {
+            let new_direction_x = dx / distance;
+            let new_direction_y = dy / distance;
+            
+            // Update direction and send to network if changed
+            if local_player.set_direction(new_direction_x, new_direction_y)
+                && let Some(sender) = network_sender {
+                    let _ = sender.send(Payload::PlayerDirection(
+                        local_player.id,
+                        local_player.direction_x,
+                        local_player.direction_y,
+                    ));
+                }
+        }
     }
 
     /// Handle shooting input
