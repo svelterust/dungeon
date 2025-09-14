@@ -1,5 +1,5 @@
 .{
-    .name = .project,
+    .name = .dungeon,
     .version = "0.1.0",
     .fingerprint = 0x2fb3d0ee2ef7ef7b,
     .minimum_zig_version = "0.15.1",

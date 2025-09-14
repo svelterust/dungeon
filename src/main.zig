@@ -110,7 +110,7 @@ pub fn main() !void {
     // Initialize raylib
     var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
     const allocator = gpa.allocator();
-    rl.initWindow(screenWidth, screenHeight, "Project");
+    rl.initWindow(screenWidth, screenHeight, "Dungeon");
     rl.setTargetFPS(60);
     defer rl.closeWindow();
 
