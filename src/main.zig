@@ -16,7 +16,7 @@ pub fn main() !void {
 
     // Initialize objects
     var player = try Player.init(screenWidth / 2, screenHeight / 2);
-    defer rl.unloadTexture(player.texture);
+    defer player.deinit(allocator);
 
     // Main game loop
     while (!rl.windowShouldClose()) {
