@@ -7,10 +7,15 @@ const Sprite = struct {
     frame_y: i32,
 };
 
-fn drawSprite(x: f32, y: f32, texture: rl.Texture2D, sprite: Sprite) void {
+const Options = struct {
+    flip: bool = false,
+};
+
+fn drawSprite(x: f32, y: f32, texture: rl.Texture2D, sprite: Sprite, options: Options) void {
     const sprite_width = 64;
     const sprite_height = 64;
-    const source = rl.Rectangle{ .x = @floatFromInt(sprite.frame_x * sprite_width), .y = @floatFromInt(sprite.frame_y * sprite_height), .width = sprite_width, .height = sprite_height };
+    const width: f32 = if (options.flip) -sprite_width else sprite_width;
+    const source = rl.Rectangle{ .x = @floatFromInt(sprite.frame_x * sprite_width), .y = @floatFromInt(sprite.frame_y * sprite_height), .width = width, .height = sprite_height };
     const dest = rl.Rectangle{ .x = x, .y = y, .width = sprite_width, .height = sprite_height };
     rl.drawTexturePro(texture, source, dest, .{ .x = 0, .y = 0 }, 0.0, .white);
 }
@@ -24,23 +29,11 @@ const Bullet = struct {
     rotation: f32,
 
     fn init(x: f32, y: f32, direction: f32) Bullet {
-        return Bullet{
-            .x = x,
-            .y = y,
-            .size = 16,
-            .speed = 10,
-            .rotation = 0.0,
-            .direction = direction,
-        };
+        return Bullet{ .x = x, .y = y, .size = 16, .speed = 10, .rotation = 0.0, .direction = direction };
     }
 
     fn draw(self: *Bullet) void {
-        rl.drawRectanglePro(.{
-            .x = self.x,
-            .y = self.y,
-            .width = self.size,
-            .height = self.size,
-        }, .{ .x = self.size / 2, .y = self.size / 2 }, self.rotation, .blue);
+        rl.drawRectanglePro(.{ .x = self.x, .y = self.y, .width = self.size, .height = self.size }, .{ .x = self.size / 2, .y = self.size / 2 }, self.rotation, .gray);
     }
 
     fn update(self: *Bullet) void {
@@ -54,12 +47,13 @@ const Bullet = struct {
 const Player = struct {
     x: f32,
     y: f32,
-    speed: f32,
     texture: rl.Texture,
     bullets: std.ArrayList(Bullet),
+    direction: enum { left, right },
 
     // Constants
     pub const size = 64;
+    const speed = 6;
     const path = "assets/player.png";
     const regular = Sprite{ .frame_x = 0, .frame_y = 0 };
     const walking = Sprite{ .frame_x = 1, .frame_y = 0 };
@@ -67,12 +61,13 @@ const Player = struct {
     fn init(x: f32, y: f32) !Player {
         const texture = try rl.loadTexture(path);
         const bullets = std.ArrayList(Bullet).empty;
-        return .{ .x = x, .y = y, .speed = 7, .texture = texture, .bullets = bullets };
+        return .{ .x = x, .y = y, .texture = texture, .bullets = bullets, .direction = .right };
     }
 
     fn draw(self: *Player) void {
         // Player
-        drawSprite(self.x, self.y, self.texture, regular);
+        const flip = self.direction == .left;
+        drawSprite(self.x, self.y, self.texture, regular, .{ .flip = flip });
 
         // Bullets
         for (self.bullets.items) |*bullet| bullet.draw();
@@ -80,11 +75,17 @@ const Player = struct {
 
     fn update(self: *Player, allocator: std.mem.Allocator) !void {
         // Player
-        if (rl.isKeyDown(.s)) self.x -= self.speed;
-        if (rl.isKeyDown(.f)) self.x += self.speed;
-        if (rl.isKeyDown(.e)) self.y -= self.speed;
-        if (rl.isKeyDown(.d)) self.y += self.speed;
-        if (rl.isKeyDown(.a)) self.y += self.speed;
+        if (rl.isKeyDown(.s)) {
+            self.x -= speed;
+            if (!rl.isKeyDown(.f)) self.direction = .left;
+        }
+        if (rl.isKeyDown(.f)) {
+            self.x += speed;
+            if (!rl.isKeyDown(.s)) self.direction = .right;
+        }
+        if (rl.isKeyDown(.e)) self.y -= speed;
+        if (rl.isKeyDown(.d)) self.y += speed;
+        if (rl.isKeyDown(.a)) self.y += speed;
 
         // Bullets
         if (rl.isMouseButtonPressed(.left)) {
