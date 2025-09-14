@@ -14,9 +14,10 @@ pub fn build(b: *std.Build) void {
     });
 
     // Dependencies
+    const raylib_optimize = if (optimize == .Debug) .ReleaseFast else optimize;
     const raylib_dep = b.dependency("raylib_zig", .{
         .target = target,
-        .optimize = optimize,
+        .optimize = raylib_optimize,
         .linux_display_backend = .Wayland,
     });
     const raylib = raylib_dep.module("raylib");
