@@ -7,27 +7,31 @@ const Sprite = utils.Sprite;
 // State
 x: f32,
 y: f32,
-flip: bool = false,
 texture: rl.Texture,
-bullets: std.ArrayList(Bullet) = std.ArrayList(Bullet).empty,
+flip: bool = false,
+moving: bool = false,
+timer: u32 = 0,
 direction: enum { side, up, down } = .side,
+bullets: std.ArrayList(Bullet) = std.ArrayList(Bullet).empty,
 
 // Constants
 const Player = @This();
 const size = 64;
 const speed = 6;
+const animationSpeed = 10;
 const sprites = struct {
-    const up = [_]Sprite{
-        Sprite{ 0, 0 },
+    const up = Sprite{ 0, 0 };
+    const down = Sprite{ 0, 1 };
+    const side = Sprite{ 0, 2 };
+    const movingUp = [_]Sprite{
         Sprite{ 1, 0 },
         Sprite{ 2, 0 },
     };
-    const down = [_]Sprite{
-        Sprite{ 0, 1 },
+    const movingDown = [_]Sprite{
         Sprite{ 1, 1 },
         Sprite{ 2, 1 },
     };
-    const side = [_]Sprite{
+    const movingSide = [_]Sprite{
         Sprite{ 0, 2 },
         Sprite{ 1, 2 },
     };
@@ -40,10 +44,11 @@ pub fn init(x: f32, y: f32) !Player {
 
 pub fn draw(self: *Player) void {
     // Player
+    const frame = self.timer / animationSpeed;
     const playerSprite = switch (self.direction) {
-        .up => sprites.up[0],
-        .down => sprites.down[0],
-        .side => sprites.side[0],
+        .up => if (self.moving) sprites.movingUp[frame % sprites.movingUp.len] else sprites.up,
+        .down => if (self.moving) sprites.movingDown[frame % sprites.movingDown.len] else sprites.down,
+        .side => if (self.moving) sprites.movingSide[frame % sprites.movingSide.len] else sprites.side,
     };
     utils.drawSprite(self.x, self.y, self.texture, playerSprite, .{ .flip = self.flip });
 
@@ -53,24 +58,35 @@ pub fn draw(self: *Player) void {
 
 pub fn update(self: *Player, allocator: std.mem.Allocator) !void {
     // Player
-    if (rl.isKeyDown(.e)) {
+    self.moving = false;
+    const up, const down, const left, const right = .{
+        rl.isKeyDown(.e),
+        rl.isKeyDown(.d),
+        rl.isKeyDown(.s),
+        rl.isKeyDown(.f),
+    };
+    if (up) {
         self.y -= speed;
-        if (!rl.isKeyDown(.d)) self.direction = .up;
+        if (!down) self.direction = .up;
     }
-    if (rl.isKeyDown(.d)) {
+    if (down) {
         self.y += speed;
-        if (!rl.isKeyDown(.e)) self.direction = .down;
+        if (!up) self.direction = .down;
     }
-    if (rl.isKeyDown(.s)) {
+    if (left) {
         self.x -= speed;
         self.direction = .side;
-        if (!rl.isKeyDown(.f)) self.flip = true;
+        if (!right) self.flip = true;
     }
-    if (rl.isKeyDown(.f)) {
+    if (right) {
         self.x += speed;
         self.direction = .side;
-        if (!rl.isKeyDown(.s)) self.flip = false;
+        if (!left) self.flip = false;
     }
+    if (up or down or left or right) {
+        self.timer += 1;
+        self.moving = true;
+    } else self.timer = 0;
 
     // Bullets
     if (rl.isMouseButtonPressed(.left)) {
