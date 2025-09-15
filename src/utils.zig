@@ -1,5 +1,9 @@
 const rl = @import("raylib");
 
+// Constants
+pub const screenWidth = 1280;
+pub const screenHeight = 720;
+
 pub const Sprite = struct { i32, i32 };
 
 pub const Options = struct {

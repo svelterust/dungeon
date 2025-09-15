@@ -7,7 +7,7 @@ const Sprite = utils.Sprite;
 // State
 x: f32,
 y: f32,
-texture: rl.Texture,
+texture: rl.Texture2D,
 flip: bool = false,
 timer: u32 = 0, // Increases when moving
 direction: enum { side, up, down } = .side,
@@ -15,7 +15,7 @@ bullets: std.ArrayList(Bullet) = std.ArrayList(Bullet).empty,
 
 // Constants
 const Player = @This();
-const size = 64;
+pub const size = 64;
 const speed = 6;
 const animationSpeed = 10;
 const sprites = struct {
@@ -36,7 +36,7 @@ const sprites = struct {
     };
 };
 
-pub fn init(x: f32, y: f32, texture: rl.Texture) Player {
+pub fn init(x: f32, y: f32, texture: rl.Texture2D) Player {
     return .{ .x = x, .y = y, .texture = texture };
 }
 

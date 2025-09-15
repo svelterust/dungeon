@@ -5,7 +5,7 @@ const Sprite = utils.Sprite;
 // State
 x: f32,
 y: f32,
-texture: rl.Texture,
+texture: rl.Texture2D,
 sprite: Sprite,
 
 // Constants
@@ -15,7 +15,7 @@ pub const sand = Sprite{ 0, 0 };
 pub const grass = Sprite{ 0, 1 };
 pub const water = Sprite{ 0, 2 };
 
-pub fn init(x: f32, y: f32, texture: rl.Texture, sprite: Sprite) Block {
+pub fn init(x: f32, y: f32, texture: rl.Texture2D, sprite: Sprite) Block {
     return .{ .x = x, .y = y, .texture = texture, .sprite = sprite };
 }
 
