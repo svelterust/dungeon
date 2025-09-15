@@ -83,7 +83,7 @@ pub fn update(self: *Player, allocator: std.mem.Allocator) !void {
         // Get angle
         const mouse_x: f32 = @floatFromInt(rl.getMouseX());
         const mouse_y: f32 = @floatFromInt(rl.getMouseY());
-        const angle = std.math.atan2(mouse_y - self.y, mouse_x - self.x);
+        const angle = std.math.atan2(mouse_y - (self.y + size / 2), mouse_x - (self.x + size / 2));
         try self.bullets.append(allocator, Bullet.init(self.x + size / 2, self.y + size / 2, angle));
     }
     for (self.bullets.items) |*bullet| bullet.update();

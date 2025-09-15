@@ -32,11 +32,7 @@ pub fn main() !void {
     }
 
     // Initialize player
-    var player = Player.init(
-        screenWidth / 2,
-        screenHeight / 2,
-        playerTexture,
-    );
+    var player = Player.init(screenWidth / 2, screenHeight / 2, playerTexture);
     defer player.deinit(allocator);
 
     // Main game loop
