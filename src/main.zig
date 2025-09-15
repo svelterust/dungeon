@@ -23,11 +23,11 @@ pub fn main() !void {
     const width = utils.screenWidth / Block.size;
     const height = utils.screenHeight / Block.size;
     var blocks: [width * height]Block = undefined;
-    const sprites = [_]utils.Sprite{ Block.grass, Block.sand, Block.water };
+    const sprites = [_]utils.Sprite{ Block.grass, Block.dirt, Block.sand, Block.water };
     for (&blocks, 0..) |*block, i| {
         const x = i % width * Block.size;
         const y = i / width * Block.size;
-        block.* = Block.init(@floatFromInt(x), @floatFromInt(y), blockTexture, sprites[(i / 8) % 3]);
+        block.* = Block.init(@floatFromInt(x), @floatFromInt(y), blockTexture, sprites[(i / 16) % sprites.len]);
     }
 
     // Initialize player

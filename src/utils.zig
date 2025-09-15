@@ -11,15 +11,14 @@ pub const Options = struct {
 };
 
 pub fn drawSprite(x: f32, y: f32, texture: rl.Texture2D, sprite: Sprite, options: Options) void {
-    const sprite_width = 64;
-    const sprite_height = 64;
-    const width: f32 = if (options.flip) -sprite_width else sprite_width;
+    const size = 64;
+    const width: f32 = if (options.flip) -size else size;
     const source = rl.Rectangle{
-        .x = @floatFromInt(sprite[0] * sprite_width),
-        .y = @floatFromInt(sprite[1] * sprite_height),
+        .x = @floatFromInt(sprite[0] * size),
+        .y = @floatFromInt(sprite[1] * size),
         .width = width,
-        .height = sprite_height,
+        .height = size,
     };
-    const dest = rl.Rectangle{ .x = x, .y = y, .width = sprite_width, .height = sprite_height };
+    const dest = rl.Rectangle{ .x = x, .y = y, .width = size, .height = size };
     rl.drawTexturePro(texture, source, dest, .{ .x = 0, .y = 0 }, 0.0, .white);
 }

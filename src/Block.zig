@@ -11,9 +11,10 @@ sprite: Sprite,
 // Constants
 const Block = @This();
 pub const size = 64;
-pub const sand = Sprite{ 0, 0 };
+pub const dirt = Sprite{ 0, 0 };
 pub const grass = Sprite{ 0, 1 };
 pub const water = Sprite{ 0, 2 };
+pub const sand = Sprite{ 0, 3 };
 
 pub fn init(x: f32, y: f32, texture: rl.Texture2D, sprite: Sprite) Block {
     return .{ .x = x, .y = y, .texture = texture, .sprite = sprite };
