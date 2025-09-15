@@ -9,8 +9,7 @@ x: f32,
 y: f32,
 texture: rl.Texture,
 flip: bool = false,
-moving: bool = false,
-timer: u32 = 0,
+timer: u32 = 0, // Increases when moving
 direction: enum { side, up, down } = .side,
 bullets: std.ArrayList(Bullet) = std.ArrayList(Bullet).empty,
 
@@ -37,18 +36,18 @@ const sprites = struct {
     };
 };
 
-pub fn init(x: f32, y: f32) !Player {
-    const texture = try rl.loadTexture("assets/player.png");
+pub fn init(x: f32, y: f32, texture: rl.Texture) Player {
     return .{ .x = x, .y = y, .texture = texture };
 }
 
 pub fn draw(self: *Player) void {
     // Player
+    const moving = self.timer > 0;
     const frame = self.timer / animationSpeed;
     const playerSprite = switch (self.direction) {
-        .up => if (self.moving) sprites.movingUp[frame % sprites.movingUp.len] else sprites.up,
-        .down => if (self.moving) sprites.movingDown[frame % sprites.movingDown.len] else sprites.down,
-        .side => if (self.moving) sprites.movingSide[frame % sprites.movingSide.len] else sprites.side,
+        .up => if (moving) sprites.movingUp[frame % sprites.movingUp.len] else sprites.up,
+        .down => if (moving) sprites.movingDown[frame % sprites.movingDown.len] else sprites.down,
+        .side => if (moving) sprites.movingSide[frame % sprites.movingSide.len] else sprites.side,
     };
     utils.drawSprite(self.x, self.y, self.texture, playerSprite, .{ .flip = self.flip });
 
@@ -58,13 +57,7 @@ pub fn draw(self: *Player) void {
 
 pub fn update(self: *Player, allocator: std.mem.Allocator) !void {
     // Player
-    self.moving = false;
-    const up, const down, const left, const right = .{
-        rl.isKeyDown(.e),
-        rl.isKeyDown(.d),
-        rl.isKeyDown(.s),
-        rl.isKeyDown(.f),
-    };
+    const up, const down, const left, const right = .{ rl.isKeyDown(.e), rl.isKeyDown(.d), rl.isKeyDown(.s), rl.isKeyDown(.f) };
     if (up) {
         self.y -= speed;
         if (!down) self.direction = .up;
@@ -83,10 +76,7 @@ pub fn update(self: *Player, allocator: std.mem.Allocator) !void {
         self.direction = .side;
         if (!left) self.flip = false;
     }
-    if (up or down or left or right) {
-        self.timer += 1;
-        self.moving = true;
-    } else self.timer = 0;
+    if (up or down or left or right) self.timer += 1;
 
     // Bullets
     if (rl.isMouseButtonPressed(.left)) {
@@ -100,6 +90,5 @@ pub fn update(self: *Player, allocator: std.mem.Allocator) !void {
 }
 
 pub fn deinit(self: *Player, allocator: std.mem.Allocator) void {
-    rl.unloadTexture(self.texture);
     self.bullets.deinit(allocator);
 }
