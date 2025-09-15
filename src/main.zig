@@ -2,6 +2,7 @@ const std = @import("std");
 const rl = @import("raylib");
 const Player = @import("Player.zig");
 const Block = @import("Block.zig");
+const utils = @import("utils.zig");
 
 // Constants
 const screenWidth = 1280;
@@ -25,10 +26,11 @@ pub fn main() !void {
     const width = screenWidth / Block.size;
     const height = screenHeight / Block.size;
     var blocks: [width * height]Block = undefined;
+    const sprites = [_]utils.Sprite{ Block.grass, Block.sand, Block.water };
     for (&blocks, 0..) |*block, i| {
         const x = i % width * Block.size;
         const y = i / width * Block.size;
-        block.* = Block.init(@floatFromInt(x), @floatFromInt(y), blockTexture);
+        block.* = Block.init(@floatFromInt(x), @floatFromInt(y), blockTexture, sprites[i % 3]);
     }
 
     // Initialize player

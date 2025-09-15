@@ -76,7 +76,7 @@ pub fn update(self: *Player, allocator: std.mem.Allocator) !void {
         self.direction = .side;
         if (!left) self.flip = false;
     }
-    if (up or down or left or right) self.timer += 1;
+    if (up or down or left or right) self.timer += 1 else self.timer = 0;
 
     // Bullets
     if (rl.isMouseButtonPressed(.left)) {
